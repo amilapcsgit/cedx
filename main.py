@@ -7,6 +7,7 @@ import pandas as pd
 import gradio as gr
 import json
 from pathlib import Path
+import functools # Added for functools.partial
 
 # Add these imports at the top
 import plotly.express as px
@@ -180,20 +181,21 @@ assets_df['Normalized OS'] = assets_df['OS Version'].apply(normalize_os_version)
 
 # Get unique normalized OS values for buttons
 unique_normalized_oss = assets_df['Normalized OS'].dropna().unique().tolist()
+unique_normalized_oss.sort() # Sort for consistent order
 
 # Dashboard functions
 def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_ram, filter_low_storage=False, page_index=0, page_size=None):
     filtered_df = assets_df.copy()
     
     # Print debug information
-    print(f"Filtering with OS filter: '{os_filter}'")
+    print(f"Filtering with OS filter: '{os_filter}' (Type: {type(os_filter)})") # Added type for debugging
     print(f"Available OS values: {filtered_df['Normalized OS'].unique().tolist()}")
     
     if hostname_filter:
         filtered_df = filtered_df[filtered_df['Hostname'].str.contains(hostname_filter, case=False, na=False)]
     
-    # Use 'Normalized OS' for filtering if os_filter is provided
-    if os_filter:
+    # Use 'Normalized OS' for filtering if os_filter is provided and is a non-empty string
+    if os_filter and isinstance(os_filter, str) and os_filter.strip():
         # Use contains instead of exact match to be more flexible
         filtered_df = filtered_df[filtered_df['Normalized OS'].str.contains(os_filter, case=False, na=False)]
         print(f"After OS filtering, found {len(filtered_df)} results")
@@ -274,8 +276,11 @@ def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_
         flex: 1;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         transition: all 0.3s ease;
-        cursor: pointer;
+        /* cursor: pointer; Removed as click is now on button */
         text-align: center;
+        display: flex; /* Added for flex layout */
+        flex-direction: column; /* Stack items vertically */
+        justify-content: space-between; /* Distribute space */
     }
     
     .asset-bubble:hover {
@@ -358,80 +363,43 @@ def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_
         margin-top: 5px;
     }
     
+    .view-details-btn {
+        background-color: rgba(255, 255, 255, 0.3);
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-top: 10px; /* Add some space above the button */
+        transition: background-color 0.2s ease;
+    }
+
+    .view-details-btn:hover {
+        background-color: rgba(255, 255, 255, 0.5);
+    }
+    
     .pagination-info {
         text-align: center;
         margin: 10px 0;
         font-weight: bold;
     }
     
-    /* Modal Popup Styles */
-    .asset-modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        overflow: auto;
-        background-color: rgba(0,0,0,0.5);
-    }
-    
-    .asset-modal-content {
-        background-color: #fefefe;
-        margin: 5% auto;
-        padding: 20px;
-        border-radius: 12px;
-        width: 80%;
-        max-width: 900px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        position: relative;
-        max-height: 85vh;
-        overflow-y: auto;
-    }
-    
-    .close-modal {
-        color: #aaa;
-        float: right;
-        font-size: 28px;
-        font-weight: bold;
-        cursor: pointer;
-        position: absolute;
-        right: 20px;
-        top: 10px;
-    }
-    
-    .close-modal:hover {
-        color: black;
-    }
-    
     @media (max-width: 768px) {
         .asset-bubble {
             min-width: 150px;
         }
-        .asset-modal-content {
-            width: 95%;
-            margin: 10% auto;
-        }
     }
     </style>
-    
-    <!-- Asset Modal Popup -->
-    <div id="assetModal" class="asset-modal">
-        <div class="asset-modal-content">
-            <span class="close-modal" onclick="closeAssetModal()">&times;</span>
-            <div id="assetModalContent">
-                <!-- Asset details will be loaded here -->
-            </div>
-        </div>
-    </div>
-    
+        
     <div class="asset-grid-container">
     """
     
     if not display_df.empty:
         for _, row in display_df.iterrows():
             hostname = row.get('Hostname', 'Unknown')
+            # Escape hostname for JavaScript string literal
+            hostname_escaped = json.dumps(hostname)[1:-1] # Use json.dumps and strip outer quotes
+
             ip = row.get('IP', 'N/A')
             os_version = row.get('Normalized OS', 'Unknown OS')
             ram = row.get('RAM', 'N/A')
@@ -465,15 +433,17 @@ def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_
                 # Handle cases where free_space_gb_raw is "N/A" or not a valid number
                 pass # Keep default empty strings for class and warning HTML
             
-            # Create a bubble for each asset
             html_content += f"""
-            <div class="asset-bubble {css_class} {low_storage_alert_class}" onclick="openAssetDetails('{hostname}')">
-                <div class="asset-hostname">{hostname}</div>
-                <div class="asset-ip">{ip}</div>
-                <div class="asset-os">{os_version}</div>
-                <div class="asset-ram">{ram}</div>
-                <div class="asset-disk-space">Disk: {free_space_gb_raw} GB</div>
-                {low_storage_warning_html}
+            <div class="asset-bubble {css_class} {low_storage_alert_class}"> 
+                <div> {/* Added a div to wrap content other than button for flex layout */}
+                    <div class="asset-hostname">{hostname}</div>
+                    <div class="asset-ip">{ip}</div>
+                    <div class="asset-os">{os_version}</div>
+                    <div class="asset-ram">{ram}</div>
+                    <div class="asset-disk-space">Disk: {free_space_gb_raw} GB</div>
+                    {low_storage_warning_html}
+                </div>
+                <button class='view-details-btn' onclick='js_trigger_py_modal(\"{hostname_escaped}\")'>View Details</button>
             </div>
             """
     else:
@@ -492,81 +462,25 @@ def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_
     </div>
     """
     
-    # Add JavaScript to handle asset details popup
+    # Define the JavaScript bridge function
     js_script = """
     <script>
-    // Function to fetch asset details and open modal
-    async function openAssetDetails(hostname) {
-        const modal = document.getElementById('assetModal');
-        const modalContent = document.getElementById('assetModalContent');
-        
-        // Show loading indicator
-        modalContent.innerHTML = '<div style="text-align: center; padding: 30px;"><p>Loading asset details...</p></div>';
-        modal.style.display = 'block';
-        
-        try {
-            // Fetch asset details using Gradio API
-            const response = await fetch(`/api/get_asset_details?hostname=${encodeURIComponent(hostname)}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch asset details');
-            }
-            
-            const htmlData = await response.text();
-            
-            // Display the asset details in the modal
-            modalContent.innerHTML = htmlData;
-        } catch (error) {
-            console.error('Error fetching asset details:', error);
-            modalContent.innerHTML = `
-                <div style="text-align: center; padding: 30px;">
-                    <h3>Error</h3>
-                    <p>Failed to load details for ${hostname}</p>
-                </div>
-            `;
-        }
-    }
-    
-    // Function to close the modal
-    function closeAssetModal() {
-        const modal = document.getElementById('assetModal');
-        modal.style.display = 'none';
-    }
-    
-    // Close modal when clicking outside of it
-    window.onclick = function(event) {
-        const modal = document.getElementById('assetModal');
-        if (event.target === modal) {
-            modal.style.display = 'none';
-        }
-    }
-    
-    // Original function to navigate to asset details tab (kept for compatibility)
-    function selectHostname(hostname) {
-        // Find the hostname dropdown and set its value
-        const dropdowns = document.querySelectorAll('select');
-        for (const dropdown of dropdowns) {
-            const options = dropdown.options;
-            for (let i = 0; i < options.length; i++) {
-                if (options[i].text === hostname) {
-                    dropdown.value = options[i].value;
-                    dropdown.dispatchEvent(new Event('change'));
-                    
-                    // Find and click the view details button
-                    const buttons = document.querySelectorAll('button');
-                    for (const button of buttons) {
-                        if (button.textContent.includes('View Details')) {
-                            button.click();
-                            break;
-                        }
-                    }
-                    break;
-                }
-            }
+    function js_trigger_py_modal(hostname) {
+        const hostnameInput = document.getElementById('py_modal_trigger_hostname_input');
+        if (hostnameInput) {
+            hostnameInput.value = hostname;
+            // Dispatch events for Gradio
+            const inputEvent = new Event('input', { bubbles: true });
+            hostnameInput.dispatchEvent(inputEvent);
+            const changeEvent = new Event('change', { bubbles: true });
+            hostnameInput.dispatchEvent(changeEvent);
+        } else {
+            console.error('py_modal_trigger_hostname_input not found');
         }
     }
     </script>
     """
-    
+
     # Return the HTML content with the JavaScript and the formatted asset count info
     if page_size is None:
         return html_content + js_script, f"Showing all {total_items} assets"
@@ -882,138 +796,6 @@ def get_unique_values(column):
         return values
     return []
 
-def create_os_filter_buttons():
-    """Create visually appealing OS filter buttons with counts"""
-    if assets_df.empty or 'Normalized OS' not in assets_df.columns:
-        return "<p>No OS data available</p>"
-    
-    # Get OS counts
-    os_counts = assets_df['Normalized OS'].value_counts().reset_index()
-    os_counts.columns = ['Normalized OS', 'Count']
-    
-    # Create HTML for the buttons
-    html = """
-    <style>
-    .os-filter-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-bottom: 15px;
-    }
-    
-    .os-filter-button {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 12px 15px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        color: white;
-        min-width: 100px;
-        text-align: center;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .os-filter-button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    }
-    
-    .os-filter-button.windows10 {
-        background: linear-gradient(135deg, #00a2ed, #0078d7);
-    }
-    
-    .os-filter-button.windows11 {
-        background: linear-gradient(135deg, #0078d7, #0063b1);
-    }
-    
-    .os-filter-button.windows8 {
-        background: linear-gradient(135deg, #00b2f0, #0072c6);
-    }
-    
-    .os-filter-button.windows7 {
-        background: linear-gradient(135deg, #6a737b, #36454f);
-    }
-    
-    .os-filter-button.linux {
-        background: linear-gradient(135deg, #f57c00, #d84315);
-    }
-    
-    .os-filter-button.macos {
-        background: linear-gradient(135deg, #8e8e93, #636366);
-    }
-    
-    .os-filter-button.unknown {
-        background: linear-gradient(135deg, #9e9e9e, #616161);
-    }
-    
-    .os-name {
-        font-weight: bold;
-        margin-bottom: 5px;
-    }
-    
-    .os-count {
-        background-color: rgba(255, 255, 255, 0.2);
-        border-radius: 10px;
-        padding: 2px 8px;
-        font-size: 12px;
-    }
-    </style>
-    
-    <div class="os-filter-container">
-    """
-    
-    # Add a button for each OS
-    for _, row in os_counts.iterrows():
-        os_name = row['Normalized OS']
-        count = row['Count']
-        
-        # Determine the CSS class based on OS
-        css_class = "unknown"
-        if "Windows 10" in os_name:
-            css_class = "windows10"
-        elif "Windows 11" in os_name:
-            css_class = "windows11"
-        elif "Windows 8" in os_name:
-            css_class = "windows8"
-        elif "Windows 7" in os_name:
-            css_class = "windows7"
-        elif "Linux" in os_name:
-            css_class = "linux"
-        elif "macOS" in os_name:
-            css_class = "macos"
-        
-        html += f"""
-        <div class="os-filter-button {css_class}" onclick="setOsFilter('{os_name}')">
-            <div class="os-name">{os_name}</div>
-            <div class="os-count">{count}</div>
-        </div>
-        """
-    
-    html += """
-    </div>
-    
-    <script>
-    function setOsFilter(osName) {
-        // Find the hidden OS filter textbox by its elem_id and set its value
-        const osFilterInput = document.getElementById('hidden_os_filter_textbox');
-        if (osFilterInput) {
-            osFilterInput.value = osName;
-            osFilterInput.dispatchEvent(new Event('input')); // Dispatch 'input' event for Gradio to recognize change
-            
-            // Find and click the Apply Filters button by its elem_id
-            const applyFiltersButton = document.getElementById('apply_filters_button');
-            if (applyFiltersButton) {
-                applyFiltersButton.click();
-            }
-        }
-    }
-    </script>
-    """
-    
-    return html
-
 # Create Gradio interface
 # Using gr.Blocks and gr.Row/gr.Column with scale for responsive layout
 # Adding CSS for Windows 11 inspired styling
@@ -1092,10 +874,45 @@ body {
 def asset_details_api(hostname):
     return get_asset_details(hostname)
 
+# Python-driven Modal Control Functions
+def show_asset_details_py_modal(hostname):
+    # assets_df should be globally accessible as it's loaded at the start of the script.
+    details_html = get_asset_details(hostname) # Use the existing function
+    return {
+        py_modal_wrapper: gr.update(visible=True),
+        py_modal_content_area: gr.update(value=details_html)
+    }
+
+def close_asset_details_py_modal():
+    return {
+        py_modal_wrapper: gr.update(visible=False)
+    }
+
+def trigger_py_modal_test():
+    if not assets_df.empty:
+        test_hostname = assets_df.iloc[0]['Hostname']
+        # This function will now return updates for two components
+        return show_asset_details_py_modal(test_hostname) 
+    else:
+        # Handle case with no assets
+        return {
+            py_modal_wrapper: gr.update(visible=True),
+            py_modal_content_area: gr.update(value="<p>No assets to display.</p>")
+        }
+
 with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
     # Register the API endpoint
     demo.api_name = "api"
     demo.queue(api_open=True)
+
+    # Hidden Textbox to trigger Python modal from JavaScript
+    py_modal_trigger_hostname_input = gr.Textbox(label="Python Modal Trigger", visible=False, elem_id="py_modal_trigger_hostname_input")
+
+    # Python-driven modal components (defined globally within the Blocks scope)
+    with gr.Box(visible=False, elem_id="py_modal_wrapper") as py_modal_wrapper:
+        py_modal_content_area = gr.HTML(value="<p>Modal Content Will Load Here...</p>")
+        py_close_modal_button = gr.Button("Close Modal")
+
     gr.Markdown(
     """
     # CED Asset Manager & Dashboard
@@ -1110,13 +927,18 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
             # Column for filters - takes 1 unit of space
             with gr.Column(scale=1):
                 hostname_filter = gr.Textbox(label="Filter by Hostname")
-                # Keep os_filter textbox, hide it, and assign elem_id
-                os_filter = gr.Textbox(label="Selected OS Filter", visible=False, elem_id="hidden_os_filter_textbox")
+                # Removed: os_filter = gr.Textbox(label="Selected OS Filter", visible=False, elem_id="hidden_os_filter_textbox")
 
                 gr.Markdown("### Filter by OS:")
-                
-                # Create a custom HTML component for OS filter buttons
-                os_filter_html = gr.HTML(value=create_os_filter_buttons())
+                # Dynamically create OS filter buttons
+                with gr.Flow(wrap=True, elem_id="os_filter_buttons_container"):
+                    for os_name_val in unique_normalized_oss: # unique_normalized_oss is globally defined
+                        btn = gr.Button(os_name_val)
+                        btn.click(
+                            fn=functools.partial(filter_assets, os_filter=os_name_val, filter_low_storage=False, page_index=0, page_size=None),
+                            inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram], 
+                            outputs=[results_table, page_info] 
+                        )
                 
                 # Add a "Clear OS Filter" button
                 clear_os_filter = gr.Button("Clear OS Filter", variant="secondary")
@@ -1129,11 +951,11 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
                 
                 low_storage_filter_button = gr.Button("Show Low Storage Assets", variant="secondary")
                 filter_button = gr.Button("Apply Filters", elem_id="apply_filters_button")
+                test_py_modal_trigger = gr.Button("Test Python Modal (First Asset)")
             
             # Column for results table - takes 2 units of space
-            # Column for results table - takes 2 units of space
             with gr.Column(scale=2):
-                results_table = gr.HTML(initial_table) # Use initial table content
+                results_table = gr.HTML(initial_table) # Use initial table content (this is the correct output component)
 
                 # --- Asset Count Info ---
                 with gr.Row():
@@ -1151,7 +973,6 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
                 )
                 view_details_button = gr.Button("View Details")
             
-            # Column for asset details JSON - takes 2 units of space
             # Column for asset details JSON - takes 2 units of space
             with gr.Column(scale=2):
                 asset_details = gr.HTML(label="Asset Details", value="""
@@ -1211,109 +1032,70 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
             return filter_assets(hostname_filter_value, selected_os, manufacturer_filter_value, min_ram_value, max_ram_value, page_index=0, page_size=page_size_value)
         # If nothing is selected (e.g., clicking outside a slice), clear the OS filter and reset to page 0
         return filter_assets(hostname_filter_value, "", manufacturer_filter_value, min_ram_value, max_ram_value, page_index=0, page_size=page_size_value)
-
-    # Link the OS chart select event to the handler
-    # Update inputs to include pagination controls
-    # os_chart.select(
-    #     fn=handle_os_chart_select,
-    #     inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram, page_size_input], # Pass other filter inputs + page_size
-    #     outputs=[results_table, page_info] # Update both table and page info
-    # )
-
-    # Define the handler for Manufacturer chart selection
-    # Update inputs to include pagination controls
-    def handle_manufacturer_chart_select(select_data, hostname_filter_value, os_filter_value, min_ram_value, max_ram_value, page_size_value):
-        if select_data and select_data.value:
-            selected_manufacturer = select_data.value
-            print(f"Selected Manufacturer from chart: {selected_manufacturer}")
-            # Call filter_assets with selected manufacturer and reset to page 0
-            return filter_assets(hostname_filter_value, os_filter_value, selected_manufacturer, min_ram_value, max_ram_value, page_index=0, page_size=page_size_value)
-        # If nothing is selected, clear the Manufacturer filter and reset to page 0
-        return filter_assets(hostname_filter_value, os_filter_value, "", min_ram_value, max_ram_value, page_index=0, page_size=page_size_value)
-
-    # Link the Manufacturer chart select event to the handler
-    # Update inputs to include pagination controls
-    # manufacturer_chart.select(
-    #     fn=handle_manufacturer_chart_select,
-    #     inputs=[hostname_filter, os_filter, min_ram, max_ram, page_size_input], # Pass other filter inputs + page_size
-    #     outputs=[results_table, page_info] # Update both table and page info
-    # )
-
+    
     # The generate_charts_button click handler remains the same
     generate_charts_button.click(
         fn=lambda: (create_os_pie_chart(), create_manufacturer_pie_chart()),
         outputs=[os_chart, manufacturer_chart]
     )
 
-    # Update the filter_button handler to show all results on a single page
+    # Main "Apply Filters" button handler
     filter_button.click(
-        fn=lambda h, o, m, min_r, max_r: filter_assets(h, o, m, min_r, max_r, filter_low_storage=False, page_index=0, page_size=None), # Show all results, ensure low_storage is False
-        inputs=[hostname_filter, os_filter, manufacturer_filter, min_ram, max_ram],
-        outputs=[results_table, page_info] # Update both table and page info
+        fn=lambda h, m, min_r, max_r: filter_assets(
+            hostname_filter=h,
+            os_filter="", # Pass empty string for OS filter, as OS is handled by specific buttons
+            manufacturer_filter=m,
+            min_ram=min_r,
+            max_ram=max_r,
+            filter_low_storage=False,
+            page_index=0,
+            page_size=None
+        ),
+        inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram], # os_filter textbox removed from inputs
+        outputs=[results_table, page_info] 
     )
 
-    # Handler for the new "Show Low Storage Assets" button
+    # Handler for the "Show Low Storage Assets" button
+    # Now also passes an empty string for os_filter, as it's not directly used by this button's logic
     low_storage_filter_button.click(
-        fn=lambda h, o, m, min_r, max_r: filter_assets(h, o, m, min_r, max_r, filter_low_storage=True, page_index=0, page_size=None),
-        inputs=[hostname_filter, os_filter, manufacturer_filter, min_ram, max_ram],
+        fn=lambda h, m, min_r, max_r: filter_assets(
+            hostname_filter=h, 
+            os_filter="", # OS filter is not set by this button directly
+            manufacturer_filter=m, 
+            min_ram=min_r, 
+            max_ram=max_r, 
+            filter_low_storage=True, 
+            page_index=0, 
+            page_size=None
+        ),
+        inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram],
+        outputs=[results_table, page_info]
+    )
+    
+    # Handler for the "Clear OS Filter" button
+    clear_os_filter.click(
+        fn=functools.partial(filter_assets, os_filter="", filter_low_storage=False, page_index=0, page_size=None),
+        inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram],
         outputs=[results_table, page_info]
     )
 
-    # The OS filter buttons now use JavaScript to set the os_filter value and click the Apply Filters button
-    
-    # Add handler for the Clear OS Filter button
-    clear_os_filter.click(
-        fn=lambda: "", # Function to clear the OS filter
-        inputs=[],
-        outputs=os_filter # Clear the os_filter textbox value
-    ).then( # Chain the next action
-        fn=lambda h, o, m, min_r, max_r: filter_assets(h, o, m, min_r, max_r, filter_low_storage=False, page_index=0, page_size=None), # Call filter_assets with all results
-        inputs=[hostname_filter, os_filter, manufacturer_filter, min_ram, max_ram], # Pass all filter inputs
-        outputs=[results_table, page_info] # Update both table and page info
+    # Python-driven modal button handlers
+    py_close_modal_button.click(fn=close_asset_details_py_modal, inputs=None, outputs=[py_modal_wrapper])
+    test_py_modal_trigger.click(fn=trigger_py_modal_test, inputs=None, outputs=[py_modal_wrapper, py_modal_content_area])
+
+    # Connect the hidden textbox to the Python modal function
+    py_modal_trigger_hostname_input.change(
+        fn=show_asset_details_py_modal,
+        inputs=[py_modal_trigger_hostname_input],
+        outputs=[py_modal_wrapper, py_modal_content_area]
     )
 
-    # --- Pagination Button Handlers ---
-    # Function to go to the previous page
-    def go_to_previous_page(current_page_info, hostname_filter_value, os_filter_value, manufacturer_filter_value, min_ram_value, max_ram_value, page_size_value):
-        # Parse current page and total pages from page_info markdown
-        match = re.search(r"Page (\d+) of (\d+)", current_page_info)
-        if match:
-            current_page = int(match.group(1))
-            total_pages = int(match.group(2))
-            if current_page > 1:
-                new_page_index = current_page - 2 # page_index is 0-based
-                table_html, new_total_pages = filter_assets(hostname_filter_value, os_filter_value, manufacturer_filter_value, min_ram_value, max_ram_value, page_index=new_page_index, page_size=page_size_value)
-                return table_html, f"Page {new_page_index + 1} of {str(new_total_pages)}" # Explicitly convert to string
-        # If cannot go back, return current state
-        return gr.update(), gr.update()
-
-    # Function to go to the next page
-    def go_to_next_page(current_page_info, hostname_filter_value, os_filter_value, manufacturer_filter_value, min_ram_value, max_ram_value, page_size_value):
-        # Parse current page and total pages from page_info markdown
-        match = re.search(r"Page (\d+) of (\d+)", current_page_info)
-        if match:
-            current_page = int(match.group(1))
-            total_pages = int(match.group(2))
-            if current_page < total_pages:
-                new_page_index = current_page # page_index is 0-based
-                table_html, new_total_pages = filter_assets(hostname_filter_value, os_filter_value, manufacturer_filter_value, min_ram_value, max_ram_value, page_index=new_page_index, page_size=page_size_value)
-                return table_html, f"Page {new_page_index + 1} of {str(new_total_pages)}" # Explicitly convert to string
-        # If cannot go forward, return current state
-        return gr.update(), gr.update()
-
-    # Pagination has been removed - all assets are shown on a single page
-
-    # Page size input has been removed - all assets are shown on a single page
-    # --- End Pagination Button Handlers ---
-
-
     view_details_button.click(
-        fn=get_asset_details,
-        inputs=hostname_dropdown,
-        outputs=asset_details
+        fn=show_asset_details_py_modal, # Use the Python modal function
+        inputs=hostname_dropdown, 
+        outputs=[py_modal_wrapper, py_modal_content_area] # Update modal components
     )
 
 # Launch the app
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=7867)
-
