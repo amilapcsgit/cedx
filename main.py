@@ -520,6 +520,13 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
     
     with gr.Tab("Asset Dashboard"):
         with gr.Row():
+            # Column for Results Display (defined first)
+            with gr.Column(scale=2):
+                results_table = gr.HTML(initial_table) 
+                with gr.Row():
+                    page_info = gr.Markdown(initial_total_pages) 
+            
+            # Column for Filters and Controls
             with gr.Column(scale=1):
                 # Define general filters first
                 hostname_filter = gr.Textbox(label="Filter by Hostname")
@@ -528,28 +535,35 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
                     min_ram = gr.Number(label="Min RAM (GB)")
                     max_ram = gr.Number(label="Max RAM (GB)")
 
-                # Then define OS-specific filters that might use the above components in their handlers
+                # Then define OS-specific filters
                 gr.Markdown("### Filter by OS:")
                 with gr.Row(elem_id="os_filter_buttons_container"): 
                     for os_name_val in unique_normalized_oss: 
                         btn = gr.Button(os_name_val)
+                        # Define the click function using a lambda that captures os_name_val
+                        # The lambda's arguments (h_val, m_val, etc.) will receive values from the 'inputs' list
+                        click_fn = lambda h_val, m_val, min_r_val, max_r_val, current_os=os_name_val: (
+                            (lambda res: { # Inner lambda to unpack result
+                                results_table: gr.update(value=res[0]),
+                                page_info: gr.update(value=res[1])
+                            })(filter_assets( # Call filter_assets once
+                                hostname_filter=h_val, os_filter=current_os, manufacturer_filter=m_val,
+                                min_ram=min_r_val, max_ram=max_r_val, filter_low_storage=False,
+                                page_index=0, page_size=None
+                            ))
+                        )
                         btn.click(
-                            fn=functools.partial(filter_assets, os_filter=os_name_val, filter_low_storage=False, page_index=0, page_size=None),
-                            inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram], 
-                            outputs=[results_table, page_info] 
+                            fn=click_fn,
+                            inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram],
+                            outputs=[results_table, page_info]
                         )
                 
                 clear_os_filter = gr.Button("Clear OS Filter", variant="secondary")
                 
-                # Other buttons that also need access to filters should be after filter definitions
+                # Other buttons that also need access to filters
                 low_storage_filter_button = gr.Button("Show Low Storage Assets", variant="secondary")
                 filter_button = gr.Button("Apply Filters", elem_id="apply_filters_button")
                 test_py_modal_trigger = gr.Button("Test Python Modal (First Asset)")
-            
-            with gr.Column(scale=2):
-                results_table = gr.HTML(initial_table) 
-                with gr.Row():
-                    page_info = gr.Markdown(initial_total_pages) 
 
     with gr.Tab("Asset Details"):
         with gr.Row():
@@ -582,18 +596,50 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
 
     demo.load(fn=lambda: (create_os_pie_chart(), create_manufacturer_pie_chart()), outputs=[os_chart, manufacturer_chart])
     
+    apply_filters_lambda = lambda h, m, min_r, max_r: (
+        (lambda res: {
+            results_table: gr.update(value=res[0]),
+            page_info: gr.update(value=res[1])
+        })(filter_assets(
+            hostname_filter=h, os_filter="", manufacturer_filter=m, # os_filter="" here
+            min_ram=min_r, max_ram=max_r, filter_low_storage=False,
+            page_index=0, page_size=None
+        ))
+    )
     filter_button.click(
-        fn=lambda h, m, min_r, max_r: filter_assets(hostname_filter=h, os_filter="", manufacturer_filter=m, min_ram=min_r, max_ram=max_r, filter_low_storage=False, page_index=0, page_size=None),
+        fn=apply_filters_lambda,
         inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram], 
         outputs=[results_table, page_info] 
     )
+
+    low_storage_lambda = lambda h, m, min_r, max_r: (
+        (lambda res: {
+            results_table: gr.update(value=res[0]),
+            page_info: gr.update(value=res[1])
+        })(filter_assets(
+            hostname_filter=h, os_filter="", manufacturer_filter=m,
+            min_ram=min_r, max_ram=max_r, filter_low_storage=True, # filter_low_storage=True here
+            page_index=0, page_size=None
+        ))
+    )
     low_storage_filter_button.click(
-        fn=lambda h, m, min_r, max_r: filter_assets(hostname_filter=h, os_filter="", manufacturer_filter=m, min_ram=min_r, max_ram=max_r, filter_low_storage=True, page_index=0, page_size=None),
+        fn=low_storage_lambda,
         inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram],
         outputs=[results_table, page_info]
     )
+
+    clear_os_filter_lambda = lambda h_val, m_val, min_r_val, max_r_val: (
+        (lambda res: {
+            results_table: gr.update(value=res[0]),
+            page_info: gr.update(value=res[1])
+        })(filter_assets(
+            hostname_filter=h_val, os_filter="", manufacturer_filter=m_val,
+            min_ram=min_r_val, max_ram=max_r_val, filter_low_storage=False,
+            page_index=0, page_size=None
+        ))
+    )
     clear_os_filter.click(
-        fn=functools.partial(filter_assets, os_filter="", filter_low_storage=False, page_index=0, page_size=None),
+        fn=clear_os_filter_lambda,
         inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram],
         outputs=[results_table, page_info]
     )
