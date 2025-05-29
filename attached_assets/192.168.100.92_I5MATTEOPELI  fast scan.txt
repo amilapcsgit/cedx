@@ -1,0 +1,80 @@
+﻿IP Address:          192.168.100.92
+Hostname:            I5MATTEOPELI
+PC Domain:           I5MATTEOPELI
+AnyDesk ID:          938576076
+Windows account:     I5MATTEOPELI\Matteo-Peli-PC
+OS Version:          Microsoft Windows 10 Pro (10.0.19045 Build 19045)
+User Email(s):       matteo.peli@gegpartners.it
+CPU:                 Intel(R) Core(TM) i5-6600K CPU @ 3.50GHz (Socket: U3E1)
+RAM:                 8,0 GB
+GPU:                 NVIDIA GeForce GT 610
+Monitor Model:       PHL 273V5
+
+System Manufacturer: MSI
+System Model:        MS-7994
+BIOS Version:        2.50
+Windows Language:    Italiano (Italia)
+
+Network Configuration:
+    Network Mode:    Static
+    DNS Servers:     192.168.100.130, 8.8.8.8
+    Default Gateway: 192.168.100.253
+
+Stored Network Credentials:
+No Stored Credentials Found
+
+Shared Folders:
+D$ -> D:\
+
+Office Version:
+Microsoft Office (16.0.10416.20073) (Subscription License)
+
+Office Activation:
+No Activation Info Found
+
+OS Activation:
+Licensed
+
+Windows key:
+R3W6B-D4BW6-W7QT2-XVBC4-Y26Y4
+
+Antivirus:
+Avast Antivirus; Windows Defender
+
+Adobe/Autodesk:
+Adobe Acrobat (64-bit); Adobe Illustrator CC 2015; Adobe Photoshop CC 2015; Adobe Refresh Manager; Autodesk Content Service; Autodesk Content Service Language Pack; Autodesk Inventor Fusion 2013; Autodesk Inventor Fusion plug-in for AutoCAD 2013; Autodesk Inventor Fusion plug-in language pack for AutoCAD 2013; Autodesk Material Library 2013; Autodesk Material Library Base Resolution Image Library 2013; Autodesk Sync
+
+=== SMB Credentials for Provided NAS IPs ===
+
+NasIP           CredenzialiMemorizzate ConnessioneAttiva
+-----           ---------------------- -----------------
+192.168.100.15  NO                     NO               
+192.168.100.115 NO                     NO               
+192.168.100.222 NO                     NO               
+192.168.100.200 NO                     NO               
+192.168.100.130 NO                     NO               
+
+
+
+
+=== Local Disks (in MB) ===
+C:  Total: 113040.32 MB, Free: 10087.93 MB
+D:  Total: 1907727 MB, Free: 1848692.93 MB
+
+=== systeminfo (selected fields) ===
+Nome SO:                              Microsoft Windows 10 Pro
+Versione SO:                          10.0.19045 N/D build 19045
+Configurazione SO:                    Workstation autonoma
+Organizzazione registrata:            
+Numero di serie:                      00330-80000-00000-AA244
+Data di installazione originale:      27/07/2020, 17:54:45
+Produttore sistema:                   MSI
+Modello sistema:                      MS-7994
+Versione BIOS:                        American Megatrends Inc. 2.50, 29/07/2016
+Impostazioni locali sistema:          it;Italiano (Italia)
+Server di accesso:                    \\I5MATTEOPELI
+Schede di rete:                       2 NIC installate.
+
+
+=== Quick WinRM Access ===
+Enter-PSSession -ComputerName 192.168.100.92 -Credential I5MATTEOPELI\ced

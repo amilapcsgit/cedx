@@ -1,0 +1,80 @@
+﻿IP Address:          192.168.100.174
+Hostname:            GEG-SOLIDI9X
+PC Domain:           GEG-SOLIDI9X
+AnyDesk ID:          892525191
+Windows account:     GEG-SOLIDI9X\G&G-3D
+OS Version:          Microsoft Windows 10 Pro (10.0.19045 Build 19045)
+User Email(s):       ufficiotecnico@gegpartners.it
+CPU:                 Intel(R) Core(TM) i9-7940X CPU @ 3.10GHz (Socket: LGA 2066 R4)
+RAM:                 31,7 GB
+GPU:                 Scheda video di base Microsoft
+Monitor Model:       HP V27ie G5; Philips 236V4
+
+System Manufacturer: System manufacturer
+System Model:        System Product Name
+BIOS Version:        0905
+Windows Language:    Inglese (Stati Uniti)
+
+Network Configuration:
+    Network Mode:    Static
+    DNS Servers:     192.168.100.130, 192.168.100.131, 8.8.8.8, 8.8.4.4
+    Default Gateway: 192.168.100.253
+
+Stored Network Credentials:
+No Stored Credentials Found
+
+Shared Folders:
+D$ -> D:\
+
+Office Version:
+Microsoft Office (16.0.18623.20156) (Subscription License)
+
+Office Activation:
+No Activation Info Found
+
+OS Activation:
+Licensed
+
+Windows key:
+VR46P-27TW2-B3JBF-3TTQX-38D
+
+Antivirus:
+Windows Defender
+
+Adobe/Autodesk:
+3Dconnexion Add-In for Autodesk Inventor; Adobe Acrobat (64-bit); Autodesk Access; Autodesk AutoCAD LT 2022 - Italiano (Italian); Autodesk AutoCAD LT 2022.1.3 Update; Autodesk Desktop Connect Service; Autodesk Genuine Service; Autodesk Guided Tutorial Plugin; Autodesk Identity Manager; Autodesk Interoperability Engine Manager; Autodesk Inventor Content Center Libraries 2023 (Desktop Content); Autodesk Inventor Electrical Catalog Browser 2023; Autodesk Inventor Electrical Catalog Browser 2023 Language Pack - Italiano (Italian); Autodesk Inventor Professional 2023; Autodesk Inventor Professional 2023 - Italiano (Italian); Autodesk Inventor Professional 2023 Language Pack - Italiano (Italian); Autodesk Material Library 2022; Autodesk Material Library 2023; Autodesk Material Library Base Resolution Image Library 2022; Autodesk Material Library Base Resolution Image Library 2023; Autodesk Material Library Low Resolution Image Library 2023; Autodesk Single Sign On Component; Salva su Autodesk Web & Mobile
+
+=== SMB Credentials for Provided NAS IPs ===
+
+NasIP           CredenzialiMemorizzate ConnessioneAttiva
+-----           ---------------------- -----------------
+192.168.100.15  NO                     NO               
+192.168.100.115 NO                     NO               
+192.168.100.222 NO                     NO               
+192.168.100.200 NO                     NO               
+192.168.100.130 NO                     NO               
+
+
+
+
+=== Local Disks (in MB) ===
+C:  Total: 476325 MB, Free: 298191.33 MB
+D:  Total: 953849 MB, Free: 773943.76 MB
+
+=== systeminfo (selected fields) ===
+Nome SO:                              Microsoft Windows 10 Pro
+Versione SO:                          10.0.19045 N/D build 19045
+Configurazione SO:                    Workstation autonoma
+Organizzazione registrata:            
+Numero di serie:                      00330-71368-57315-AAOEM
+Data di installazione originale:      14/09/2020, 04:26:34
+Produttore sistema:                   System manufacturer
+Modello sistema:                      System Product Name
+Versione BIOS:                        American Megatrends Inc. 0905, 30/11/2018
+Impostazioni locali sistema:          en-us;Inglese (Stati Uniti d'America)
+Server di accesso:                    \\GEG-SOLIDI9X
+Schede di rete:                       5 NIC installate.
+
+
+=== Quick WinRM Access ===
+Enter-PSSession -ComputerName 192.168.100.174 -Credential GEG-SOLIDI9X\ced
