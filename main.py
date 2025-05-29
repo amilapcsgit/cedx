@@ -511,10 +511,10 @@ def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_
                 throw new Error('Failed to fetch asset details');
             }
             
-            const data = await response.json();
+            const htmlData = await response.text();
             
             // Display the asset details in the modal
-            modalContent.innerHTML = data.data;
+            modalContent.innerHTML = htmlData;
         } catch (error) {
             console.error('Error fetching asset details:', error);
             modalContent.innerHTML = `
@@ -996,19 +996,16 @@ def create_os_filter_buttons():
     
     <script>
     function setOsFilter(osName) {
-        // Find the hidden OS filter textbox and set its value
-        const osFilterInputs = document.querySelectorAll('input[aria-label="Selected OS Filter"]');
-        if (osFilterInputs.length > 0) {
-            osFilterInputs[0].value = osName;
-            osFilterInputs[0].dispatchEvent(new Event('input'));
+        // Find the hidden OS filter textbox by its elem_id and set its value
+        const osFilterInput = document.getElementById('hidden_os_filter_textbox');
+        if (osFilterInput) {
+            osFilterInput.value = osName;
+            osFilterInput.dispatchEvent(new Event('input')); // Dispatch 'input' event for Gradio to recognize change
             
-            // Find and click the Apply Filters button
-            const buttons = document.querySelectorAll('button');
-            for (const button of buttons) {
-                if (button.textContent.includes('Apply Filters')) {
-                    button.click();
-                    break;
-                }
+            // Find and click the Apply Filters button by its elem_id
+            const applyFiltersButton = document.getElementById('apply_filters_button');
+            if (applyFiltersButton) {
+                applyFiltersButton.click();
             }
         }
     }
@@ -1113,8 +1110,8 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
             # Column for filters - takes 1 unit of space
             with gr.Column(scale=1):
                 hostname_filter = gr.Textbox(label="Filter by Hostname")
-                # Keep os_filter textbox, hide it
-                os_filter = gr.Textbox(label="Selected OS Filter", visible=False)
+                # Keep os_filter textbox, hide it, and assign elem_id
+                os_filter = gr.Textbox(label="Selected OS Filter", visible=False, elem_id="hidden_os_filter_textbox")
 
                 gr.Markdown("### Filter by OS:")
                 
@@ -1131,7 +1128,7 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
                     max_ram = gr.Number(label="Max RAM (GB)")
                 
                 low_storage_filter_button = gr.Button("Show Low Storage Assets", variant="secondary")
-                filter_button = gr.Button("Apply Filters")
+                filter_button = gr.Button("Apply Filters", elem_id="apply_filters_button")
             
             # Column for results table - takes 2 units of space
             # Column for results table - takes 2 units of space
