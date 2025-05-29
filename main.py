@@ -931,7 +931,7 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
 
                 gr.Markdown("### Filter by OS:")
                 # Dynamically create OS filter buttons
-                with gr.Flow(wrap=True, elem_id="os_filter_buttons_container"):
+                with gr.Row(wrap=True, elem_id="os_filter_buttons_container"): # Changed gr.Flow to gr.Row
                     for os_name_val in unique_normalized_oss: # unique_normalized_oss is globally defined
                         btn = gr.Button(os_name_val)
                         btn.click(
