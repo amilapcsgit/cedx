@@ -10,6 +10,9 @@ This application is a Python script that parses asset information from text file
     *   View a list of assets with key information.
     *   Filter assets by Hostname, OS, Manufacturer, and RAM range.
     *   View detailed information for a selected asset in a popup modal.
+    *   Displays C Drive Free Space (GB) directly in the asset overview bubbles.
+    *   Visually highlights assets with low C Drive free space (less than 10 GB) in the overview.
+    *   Includes a 'Show Low Storage Assets' quick filter button to easily identify systems needing attention for disk space.
 *   **System Statistics:** Displays pie charts showing the distribution of Operating Systems and System Manufacturers among the parsed assets.
 
 ## Requirements

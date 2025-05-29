@@ -182,7 +182,7 @@ assets_df['Normalized OS'] = assets_df['OS Version'].apply(normalize_os_version)
 unique_normalized_oss = assets_df['Normalized OS'].dropna().unique().tolist()
 
 # Dashboard functions
-def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_ram, page_index=0, page_size=None):
+def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_ram, filter_low_storage=False, page_index=0, page_size=None):
     filtered_df = assets_df.copy()
     
     # Print debug information
@@ -213,6 +213,14 @@ def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_
     
     # Drop the temporary column
     filtered_df = filtered_df.drop('RAM_Value', axis=1)
+
+    # Filter by low storage if requested
+    if filter_low_storage:
+        # Ensure 'C Drive Free Space (GB)' is numeric before comparison
+        # assets_df['C Drive Free Space (GB)'] is already numeric or N/A from parsing
+        # We need to apply this to filtered_df
+        numeric_disk_space = pd.to_numeric(filtered_df['C Drive Free Space (GB)'], errors='coerce')
+        filtered_df = filtered_df[numeric_disk_space < 10]
 
     # Display only relevant columns in the results table
     display_columns = ['IP', 'Hostname', 'Normalized OS', 'CPU', 'RAM', 'System Manufacturer', 'C Drive Free Space (GB)']
@@ -332,6 +340,23 @@ def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_
         margin-top: 5px;
         opacity: 0.8;
     }
+
+    .asset-disk-space {
+        font-size: 12px;
+        margin-top: 5px;
+        opacity: 0.8;
+    }
+
+    .asset-bubble.low-storage-alert {
+        border: 3px solid #FF6347; /* Tomato red border */
+    }
+
+    .low-storage-warning-text {
+        font-weight: bold;
+        color: #FF6347; /* Tomato red text */
+        font-size: 12px;
+        margin-top: 5px;
+    }
     
     .pagination-info {
         text-align: center;
@@ -410,6 +435,7 @@ def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_
             ip = row.get('IP', 'N/A')
             os_version = row.get('Normalized OS', 'Unknown OS')
             ram = row.get('RAM', 'N/A')
+            free_space_gb_raw = row.get('C Drive Free Space (GB)', 'N/A') # Get raw value first
             
             # Determine the CSS class based on OS
             css_class = "unknown"
@@ -425,14 +451,29 @@ def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_
                 css_class = "linux"
             elif "macOS" in os_version:
                 css_class = "macos"
+
+            low_storage_alert_class = ""
+            low_storage_warning_html = ""
+
+            try:
+                # Convert free_space_gb_raw to float for comparison
+                free_space_gb_val = float(free_space_gb_raw)
+                if free_space_gb_val < 10:
+                    low_storage_alert_class = "low-storage-alert"
+                    low_storage_warning_html = '<div class="low-storage-warning-text">LOW STORAGE!</div>'
+            except ValueError:
+                # Handle cases where free_space_gb_raw is "N/A" or not a valid number
+                pass # Keep default empty strings for class and warning HTML
             
             # Create a bubble for each asset
             html_content += f"""
-            <div class="asset-bubble {css_class}" onclick="openAssetDetails('{hostname}')">
+            <div class="asset-bubble {css_class} {low_storage_alert_class}" onclick="openAssetDetails('{hostname}')">
                 <div class="asset-hostname">{hostname}</div>
                 <div class="asset-ip">{ip}</div>
                 <div class="asset-os">{os_version}</div>
                 <div class="asset-ram">{ram}</div>
+                <div class="asset-disk-space">Disk: {free_space_gb_raw} GB</div>
+                {low_storage_warning_html}
             </div>
             """
     else:
@@ -1089,6 +1130,7 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
                     min_ram = gr.Number(label="Min RAM (GB)")
                     max_ram = gr.Number(label="Max RAM (GB)")
                 
+                low_storage_filter_button = gr.Button("Show Low Storage Assets", variant="secondary")
                 filter_button = gr.Button("Apply Filters")
             
             # Column for results table - takes 2 units of space
@@ -1208,9 +1250,16 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
 
     # Update the filter_button handler to show all results on a single page
     filter_button.click(
-        fn=lambda h, o, m, min_r, max_r: filter_assets(h, o, m, min_r, max_r, page_index=0, page_size=None), # Show all results
+        fn=lambda h, o, m, min_r, max_r: filter_assets(h, o, m, min_r, max_r, filter_low_storage=False, page_index=0, page_size=None), # Show all results, ensure low_storage is False
         inputs=[hostname_filter, os_filter, manufacturer_filter, min_ram, max_ram],
         outputs=[results_table, page_info] # Update both table and page info
+    )
+
+    # Handler for the new "Show Low Storage Assets" button
+    low_storage_filter_button.click(
+        fn=lambda h, o, m, min_r, max_r: filter_assets(h, o, m, min_r, max_r, filter_low_storage=True, page_index=0, page_size=None),
+        inputs=[hostname_filter, os_filter, manufacturer_filter, min_ram, max_ram],
+        outputs=[results_table, page_info]
     )
 
     # The OS filter buttons now use JavaScript to set the os_filter value and click the Apply Filters button
@@ -1221,7 +1270,7 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
         inputs=[],
         outputs=os_filter # Clear the os_filter textbox value
     ).then( # Chain the next action
-        fn=lambda h, o, m, min_r, max_r: filter_assets(h, o, m, min_r, max_r, page_index=0, page_size=None), # Call filter_assets with all results
+        fn=lambda h, o, m, min_r, max_r: filter_assets(h, o, m, min_r, max_r, filter_low_storage=False, page_index=0, page_size=None), # Call filter_assets with all results
         inputs=[hostname_filter, os_filter, manufacturer_filter, min_ram, max_ram], # Pass all filter inputs
         outputs=[results_table, page_info] # Update both table and page info
     )
