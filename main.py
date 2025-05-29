@@ -435,7 +435,7 @@ def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_
             
             html_content += f"""
             <div class="asset-bubble {css_class} {low_storage_alert_class}"> 
-                <div> {/* Added a div to wrap content other than button for flex layout */}
+                <div> <!-- Added a div to wrap content other than button for flex layout -->
                     <div class="asset-hostname">{hostname}</div>
                     <div class="asset-ip">{ip}</div>
                     <div class="asset-os">{os_version}</div>
