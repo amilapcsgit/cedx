@@ -909,7 +909,7 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
     py_modal_trigger_hostname_input = gr.Textbox(label="Python Modal Trigger", visible=False, elem_id="py_modal_trigger_hostname_input")
 
     # Python-driven modal components (defined globally within the Blocks scope)
-    with gr.Box(visible=False, elem_id="py_modal_wrapper") as py_modal_wrapper:
+    with gr.Column(visible=False, elem_id="py_modal_wrapper") as py_modal_wrapper: # Changed gr.Box to gr.Column
         py_modal_content_area = gr.HTML(value="<p>Modal Content Will Load Here...</p>")
         py_close_modal_button = gr.Button("Close Modal")
 
