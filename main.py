@@ -85,7 +85,8 @@ def parse_asset_files():
                 "Windows Language": r"Windows Language:\s*(.*?)(?:\n|$)",
                 "Antivirus": r"Antivirus:\s*(.*?)(?:\n|$)",
                 "Office Version": r"Office Version:\s*(.*?)(?:\n|$)",
-                "OS Activation": r"OS Activation:\s*(.*?)(?:\n|$)"
+                "OS Activation": r"OS Activation:\s*(.*?)(?:\n|$)",
+                "AnyDesk ID": r"AnyDesk ID:\s*(\d+)(?:\n|$)"
             }
             
             for key, pattern in patterns.items():
@@ -221,21 +222,30 @@ def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_
         filtered_df = filtered_df[numeric_disk_space < 10]
 
     # Display only relevant columns in the results table
-    display_columns = ['IP', 'Hostname', 'Normalized OS', 'CPU', 'RAM', 'System Manufacturer', 'C Drive Free Space (GB)']
-    display_columns = [col for col in display_columns if col in filtered_df.columns]
+    # For bubble display, we need more columns than just for a table.
+    # Ensure 'AnyDesk ID' is available for bubbles.
+    bubble_display_columns = ['IP', 'Hostname', 'Normalized OS', 'CPU', 'RAM', 'System Manufacturer', 'C Drive Free Space (GB)', 'AnyDesk ID']
+    # Ensure all requested columns actually exist in filtered_df
+    bubble_display_columns = [col for col in bubble_display_columns if col in filtered_df.columns]
+
 
     # --- Display Logic ---
     total_items = len(filtered_df)
     
     if page_size is None:
-        display_df = filtered_df[display_columns].copy()
+        # When displaying all, select necessary columns for bubbles from filtered_df
+        display_df = filtered_df[bubble_display_columns].copy()
         total_pages = 1
         page_index = 0
     else:
+        # When paginating, select necessary columns for bubbles from the paginated slice of filtered_df
         total_pages = (total_items + page_size - 1) // page_size 
         start_index = page_index * page_size
         end_index = min(start_index + page_size, total_items)
-        display_df = filtered_df[display_columns].iloc[start_index:end_index].copy()
+        # Ensure to select bubble_display_columns from the main filtered_df before slicing for pagination,
+        # or select from the slice if the slice is already a DataFrame.
+        # Let's assume filtered_df.iloc[start_index:end_index] gives a DataFrame, then select columns.
+        display_df = filtered_df.iloc[start_index:end_index][bubble_display_columns].copy()
     
     numeric_cols_to_convert = ["C Drive Free Space (GB)"]
     for col in numeric_cols_to_convert:
@@ -301,7 +311,14 @@ def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_
             ip = row.get('IP', 'N/A')
             os_version = row.get('Normalized OS', 'Unknown OS')
             ram = row.get('RAM', 'N/A')
-            free_space_gb_raw = row.get('C Drive Free Space (GB)', 'N/A') 
+            free_space_gb_raw = row.get('C Drive Free Space (GB)', 'N/A')
+            anydesk_id = row.get('AnyDesk ID', 'N/A')
+            anydesk_html = ""
+            if anydesk_id != "N/A" and anydesk_id.isdigit() and anydesk_id.strip(): # Check isdigit and not just whitespace
+                anydesk_html = f'<a href="anydesk:{anydesk_id}" target="_blank" style="font-size: 11px; color: white; text-decoration: underline; display: block; margin-top: 5px;">Anydesk: {anydesk_id}</a>'
+            else:
+                anydesk_html = '<div style="font-size: 11px; color: white; margin-top: 5px; opacity: 0.8;">Anydesk: N/A</div>'
+            
             css_class = "unknown"
             if "Windows 10" in os_version: css_class = "windows10"
             elif "Windows 11" in os_version: css_class = "windows11"
@@ -326,6 +343,7 @@ def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_
                     <div class="asset-os">{os_version}</div>
                     <div class="asset-ram">{ram}</div>
                     <div class="asset-disk-space">Disk: {free_space_gb_raw} GB</div>
+                    {anydesk_html} 
                     {low_storage_warning_html}
                 </div>
                 <button class='view-details-btn' onclick='js_trigger_py_modal(\"{hostname_escaped}\")'>View Details</button>
@@ -383,6 +401,15 @@ def get_asset_details(hostname):
         for k, v in asset_dict.items():
             if pd.isna(v): asset_dict[k] = "N/A"
             elif not isinstance(v, str): asset_dict[k] = str(v)
+        
+        # Prepare AnyDesk ID HTML
+        anydesk_id = asset_dict.get('AnyDesk ID', 'N/A')
+        anydesk_html_value = "N/A"
+        if anydesk_id != "N/A" and anydesk_id.isdigit():
+            anydesk_html_value = f'<a href="anydesk:{anydesk_id}">{anydesk_id}</a>'
+        else:
+            anydesk_html_value = anydesk_id # Display "N/A" or other non-digit values as is
+
         html = f"""
         <style>
         .asset-dashboard {{ background: white; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.2); padding: 25px; max-width: 900px; margin: 0 auto; position: relative; }}
@@ -432,7 +459,7 @@ def get_asset_details(hostname):
             </ul></div></div>
             <div class="asset-section"><h3>Network</h3><div class="asset-grid">
                 <div class="asset-item"><strong>PC Domain:</strong> {asset_dict.get('PC Domain', 'N/A')}</div>
-                <div class="asset-item"><strong>AnyDesk ID:</strong> {asset_dict.get('AnyDesk ID', 'N/A')}</div>
+                <div class="asset-item"><strong>AnyDesk ID:</strong> {anydesk_html_value}</div>
                 <div class="asset-item"><strong>Windows Account:</strong> {asset_dict.get('Windows account', 'N/A')}</div>
                 <div class="asset-item"><strong>User Email:</strong> {asset_dict.get('User Email', 'N/A')}</div>
             </div></div>
@@ -511,6 +538,7 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
     demo.queue(api_open=True)
 
     py_modal_trigger_hostname_input = gr.Textbox(label="Python Modal Trigger", visible=False, elem_id="py_modal_trigger_hostname_input")
+    current_os_filter_state = gr.Textbox(label="Current OS Filter State", value="", visible=False) # Hidden state for OS filter
 
     with gr.Column(visible=False, elem_id="py_modal_wrapper") as py_modal_wrapper: 
         py_modal_content_area = gr.HTML(value="<p>Modal Content Will Load Here...</p>")
@@ -545,7 +573,8 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
                         click_fn = lambda h_val, m_val, min_r_val, max_r_val, current_os=os_name_val: (
                             (lambda res: { # Inner lambda to unpack result
                                 results_table: gr.update(value=res[0]),
-                                page_info: gr.update(value=res[1])
+                                page_info: gr.update(value=res[1]),
+                                current_os_filter_state: current_os # Update state
                             })(filter_assets( # Call filter_assets once
                                 hostname_filter=h_val, os_filter=current_os, manufacturer_filter=m_val,
                                 min_ram=min_r_val, max_ram=max_r_val, filter_low_storage=False,
@@ -555,7 +584,7 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
                         btn.click(
                             fn=click_fn,
                             inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram],
-                            outputs=[results_table, page_info]
+                            outputs=[results_table, page_info, current_os_filter_state] # Add state to outputs
                         )
                 
                 clear_os_filter = gr.Button("Clear OS Filter", variant="secondary")
@@ -596,42 +625,43 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
 
     demo.load(fn=lambda: (create_os_pie_chart(), create_manufacturer_pie_chart()), outputs=[os_chart, manufacturer_chart])
     
-    apply_filters_lambda = lambda h, m, min_r, max_r: (
+    apply_filters_lambda = lambda h, m, min_r, max_r, current_os_val: ( # Add current_os_val
         (lambda res: {
             results_table: gr.update(value=res[0]),
             page_info: gr.update(value=res[1])
         })(filter_assets(
-            hostname_filter=h, os_filter="", manufacturer_filter=m, # os_filter="" here
+            hostname_filter=h, os_filter=current_os_val, manufacturer_filter=m, # Use current_os_val
             min_ram=min_r, max_ram=max_r, filter_low_storage=False,
             page_index=0, page_size=None
         ))
     )
     filter_button.click(
         fn=apply_filters_lambda,
-        inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram], 
-        outputs=[results_table, page_info] 
+        inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram, current_os_filter_state], # Add state to inputs
+        outputs=[results_table, page_info]
     )
 
-    low_storage_lambda = lambda h, m, min_r, max_r: (
+    low_storage_lambda = lambda h, m, min_r, max_r, current_os_val: ( # Add current_os_val
         (lambda res: {
             results_table: gr.update(value=res[0]),
             page_info: gr.update(value=res[1])
         })(filter_assets(
-            hostname_filter=h, os_filter="", manufacturer_filter=m,
+            hostname_filter=h, os_filter=current_os_val, manufacturer_filter=m, # Use current_os_val
             min_ram=min_r, max_ram=max_r, filter_low_storage=True, # filter_low_storage=True here
             page_index=0, page_size=None
         ))
     )
     low_storage_filter_button.click(
         fn=low_storage_lambda,
-        inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram],
+        inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram, current_os_filter_state], # Add state to inputs
         outputs=[results_table, page_info]
     )
 
     clear_os_filter_lambda = lambda h_val, m_val, min_r_val, max_r_val: (
         (lambda res: {
             results_table: gr.update(value=res[0]),
-            page_info: gr.update(value=res[1])
+            page_info: gr.update(value=res[1]),
+            current_os_filter_state: "" # Clear state
         })(filter_assets(
             hostname_filter=h_val, os_filter="", manufacturer_filter=m_val,
             min_ram=min_r_val, max_ram=max_r_val, filter_low_storage=False,
@@ -641,7 +671,7 @@ with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
     clear_os_filter.click(
         fn=clear_os_filter_lambda,
         inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram],
-        outputs=[results_table, page_info]
+        outputs=[results_table, page_info, current_os_filter_state] # Add state to outputs
     )
     py_close_modal_button.click(fn=close_asset_details_py_modal, inputs=None, outputs=[py_modal_wrapper])
     test_py_modal_trigger.click(fn=trigger_py_modal_test, inputs=None, outputs=[py_modal_wrapper, py_modal_content_area])
