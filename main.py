@@ -3,16 +3,12 @@ import sys
 import subprocess
 import re
 import glob
-import pandas as pd
-import gradio as gr
 import json
 from pathlib import Path
-import functools # Added for functools.partial
+import functools  # Added for functools.partial
 
-# Add these imports at the top
-import plotly.express as px
-import plotly.graph_objects as go
-import matplotlib.pyplot as plt
+# We'll import third-party libraries after ensuring they are installed
+
 
 # Function to check and install dependencies
 def check_and_install_dependencies():
@@ -25,17 +21,22 @@ def check_and_install_dependencies():
     
     # Create a flag file to track if dependencies have been installed
     flag_file = Path("dependencies_installed.flag")
-    
-    if not flag_file.exists():
-        print("First run detected. Installing dependencies...")
+
+    # Check if required packages can be imported
+    missing_packages = []
+    for package in required_packages:
         try:
-            # Install required packages
+            __import__(package)
+        except ImportError:
+            missing_packages.append(package)
+
+    if missing_packages or not flag_file.exists():
+        print("Installing missing dependencies...")
+        try:
             subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
-            for package in required_packages:
+            for package in missing_packages:
                 print(f"Installing {package}...")
                 subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-            
-            # Create flag file to indicate dependencies have been installed
             flag_file.touch()
             print("All dependencies installed successfully!")
         except Exception as e:
@@ -44,8 +45,15 @@ def check_and_install_dependencies():
     else:
         print("Dependencies already installed.")
 
-# Call the function to check and install dependencies
+# Call the function to check and install dependencies before importing third-party libraries
 check_and_install_dependencies()
+
+# Now that dependencies are ensured, import them
+import pandas as pd
+import gradio as gr
+import plotly.express as px
+import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 
 # Function to parse asset information from text files
 def parse_asset_files():
