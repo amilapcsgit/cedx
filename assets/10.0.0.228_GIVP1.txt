@@ -1,0 +1,91 @@
+﻿IP Address:          10.0.0.228
+Hostname:            GIVP1
+PC Domain:           GIVP1
+AnyDesk ID:          444667890
+Windows account:     GIVP1\Pierluca
+OS Version:          Microsoft Windows 10 Pro (10.0.19045 Build 19045)
+OS Install Date:     2024-05-07 08:40:46
+Last Reboot Time:    2026-03-06 10:42:31
+System Uptime:       6d 23h 10m
+User Email(s):       No Email Found
+CPU:                 Intel(R) Xeon(R) CPU E5-1650 v4 @ 3.60GHz (Socket: CPU1)
+RAM:                 31.9 GB
+GPU:                 NVIDIA Quadro P4000
+Monitor Model:       Philips 220SW
+
+System Manufacturer: Supermicro
+System Model:        Super Server
+Serial Number:       0123456789
+BIOS Version:        2.0b
+Windows Language:    English (United Kingdom)
+
+Network Configuration:
+    Network Mode:    Static (0)
+    DNS Servers:     8.8.8.8, 1.1.1.1
+    Default Gateway: 10.0.0.1
+
+Stored Network Credentials:
+  cmdkey: Target=Domain:target=192.168.100.130, User=pierluca.barosi
+  cmdkey: Target=WindowsLive:target=virtualapp/didlogical, User=02ksaufvbxiszoqy
+
+Shared Folders:
+  None
+
+Office Version:
+  Microsoft Office File Validation Add-In (14.0.5130.5003)
+
+Office Activation:
+  No Activation Info Found
+
+OS Activation:
+  Licensed
+
+Windows key:
+  QGQPM-3MKHY-B86BD-H3DMY-CWF9F
+
+Antivirus:
+  Avast Antivirus; Windows Defender
+
+Adobe/Autodesk:
+  Adobe Acrobat (64-bit) v25.001.20844; Adobe Creative Cloud v3.9.0.327; AutoCAD LT 2022 - English v24.1.173.0; AutoCAD LT 2022 - Italiano (Italian) v24.1.51.0; AutoCAD LT 2023 - Italiano (Italian) v24.2.53.0; AutoCAD LT 2023 Shared v24.2.192.0; AutoCAD Open in Desktop v1.0.26.0; Autodesk Access v2.4.0.119; Autodesk AutoCAD LT 2022 - Italiano (Italian) v24.1.173.0; Autodesk AutoCAD LT 2023 - Italiano (Italian) v24.2.192.0; Autodesk Identity Manager v1.10.4.0; Autodesk Material Library 2022 v20.3.7.0; Autodesk Material Library 2023 v21.0.1.1; Autodesk Material Library Base Resolution Image Library 2022 v20.3.7.0; Autodesk Material Library Base Resolution Image Library 2023 v21.0.1.1; Autodesk Save to Web and Mobile v3.0.30; Autodesk Single Sign On Component v13.3.3.1803; NVIDIA mental ray and IRay feature plugins for 3ds Max 2017 v19.0.0.0; NVIDIA mental ray and IRay rendering plugins for 3ds Max 2017 v19.0.0.0
+
+Local User Accounts:
+  (No non-AD local users found)
+
+Installed Printers:
+  ERVIN VersaLink C7025 V4 PS; Microsoft Print to PDF; Microsoft XPS Document Writer; OneNote for Windows 10; XRX WC 7225 (6BAC11)
+
+Bitlocker Status:
+  C: Protection: Off, Encryption: FullyDecrypted
+
+=== SMB Credentials for Provided NAS IPs ===
+
+NasIP           UtenteMemorizzato ConnessioneAttiva
+-----           ----------------- -----------------
+192.168.100.15  NO                NO               
+192.168.100.115 NO                NO               
+192.168.100.222 NO                NO               
+192.168.100.200 NO                NO               
+192.168.100.130 pierluca.barosi   NO               
+
+
+=== Local Disks (Space & Type) ===
+  C: Total: 243125 MB, Free: 11407.64 MB, Type: SSD
+
+=== systeminfo (selected fields) ===
+  Original Install Date: 07/05/2024, 08:40:46
+  System Model: Super Server
+  System Manufacturer: Supermicro
+  OS Version: 10.0.19045 N/A Build 19045
+  Logon Server: \\GIVP1
+  System Locale: en-gb;English (United Kingdom)
+  OS Configuration: Standalone Workstation
+  BIOS Version: American Megatrends Inc. 2.0b, 10/04/2017
+  Network Card(s): 2 NIC(s) Installed.,[01]: Intel(R) I350 Gigabit Network Connection,      Connection Name: italtelo,      Status:          Media disconnected,[02]: Intel(R) I350 Gigabit Network Connection,      Connection Name: metalprogest,      DHCP Enabled:    No,      IP address(es),      [01]: 10.0.0.228,      [02]: fe80::ba70:67a1:d3c5:a06f
+  OS Name: Microsoft Windows 10 Pro
+  Product ID: 00330-71335-94360-AAOEM
+  Registered Organization: 
+
+=== Quick WinRM Access ===
+Enter-PSSession -ComputerName 10.0.0.228 -Credential GIVP1\ced
+
