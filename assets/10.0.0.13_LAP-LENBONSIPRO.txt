@@ -1,0 +1,93 @@
+IP Address:          10.0.0.13
+Hostname:            LAP-LENBONSIPRO
+PC Domain:           LAP-LENBONSIPRO
+AnyDesk ID:          1147395519
+Windows account:     LAP-LENBONSIPRO\Marco Bonsi
+OS Version:          Microsoft Windows 11 Pro (10.0.26200 Build 26200)
+OS Install Date:     2026-02-20 07:35:49
+Last Reboot Time:    2026-03-04 17:51:16
+System Uptime:       0d 0h 9m
+User Email(s):       No Email Found
+CPU:                 AMD Ryzen 5 7520U with Radeon Graphics (Socket: FT6)
+RAM:                 13,8 GB
+GPU:                 AMD Radeon(TM) 610M
+Monitor Model:        
+MSI MP275    
+
+System Manufacturer: LENOVO
+System Model:        82XQ
+Serial Number:       PF5VGRH6
+BIOS Version:        L1CN48WW
+Windows Language:    Italiano (Italia)
+
+Network Configuration:
+    Network Mode:    Static (0)
+    DNS Servers:     10.0.0.253
+    Default Gateway: 10.0.0.2
+
+Stored Network Credentials:
+  cmdkey: Target=LegacyGeneric:target=Olk/PushNotificationsKey, User=Olk/PushNotificationsKey
+  cmdkey: Target=WindowsLive:target=virtualapp/didlogical, User=02mqfhfbsatmjxna
+
+Shared Folders:
+  None
+
+Office Version:
+  Microsoft 365 Apps for business - it-it (16.0.19725.20126)
+
+Office Activation:
+  No Activation Info Found
+
+OS Activation:
+  Licensed
+
+Windows key:
+  BBBBB-BBBBB-BBBBB-BBBBB-BBBBB
+
+Antivirus:
+  McAfee; Windows Defender
+
+Adobe/Autodesk:
+  Adobe Acrobat (64-bit) v25.001.21223; AutoCAD LT 2026 - Italiano (Italian) v25.1.60.0; AutoCAD LT Private v25.1.60.0; AutoCAD Open in Desktop v1.0.28.0; Autodesk Access v2.21.0.559; Autodesk AutoCAD LT 2026 - Italiano (Italian) v25.1.164.0; Autodesk CER v7.2.4.927; Salva su Autodesk Web & Mobile v3.1.8
+
+Local User Accounts:
+  (No non-AD local users found)
+
+Installed Printers:
+  iR-ADV C5840; Microsoft Print to PDF; OneNote (Desktop)
+
+Bitlocker Status:
+  C: Protection: Off, Encryption: FullyEncrypted
+  D: Protection: Off, Encryption: FullyDecrypted
+
+=== SMB Credentials for Provided NAS IPs ===
+
+NasIP           UtenteMemorizzato ConnessioneAttiva
+-----           ----------------- -----------------
+192.168.100.15  NO                NO               
+192.168.100.115 NO                NO               
+192.168.100.222 NO                NO               
+192.168.100.200 NO                NO               
+192.168.100.130 NO                NO               
+
+
+=== Local Disks (Space & Type) ===
+  C: Total: 486109 MB, Free: 361257.67 MB, Type: SSD
+
+=== systeminfo (selected fields) ===
+  Original Install Date: 20/02/2026, 07:35:49
+  System Model: 82XQ
+  System Manufacturer: LENOVO
+  OS Version: 10.0.26200 N/D build 26200
+  Logon Server: \\LAP-LENBONSIPRO
+  System Locale: it;Italiano (Italia)
+  OS Configuration: Workstation autonoma
+  BIOS Version: LENOVO L1CN48WW, 02/09/2025
+  Network Card(s): 4 NIC installate.,[01]: MediaTek Wi-Fi 6 MT7920 Wireless LAN Card,      Nome connessione: Wi-Fi,      Stato:            Supporto disconnesso,[02]: Bluetooth Device (Personal Area Network),      Nome connessione: Connessione di rete Bluetooth,      Stato:            Supporto disconnesso,[03]: TAP-Windows Adapter V9,      Nome connessione: McAfee VPN,      Stato:            Supporto disconnesso,[04]: ASIX AX88179 USB 3.0 to Gigabit Ethernet Adapter,      Nome connessione: Ethernet 2,      DHCP abilitato:   S,      Server DHCP:      10.0.0.253,      Indirizzi IP,      [01]: 10.0.0.13,      [02]: fe80::c15e:afa6:278:d202
+  OS Name: Microsoft Windows 11 Pro
+  Product ID: 00331-20034-27593-AA909
+  Registered Organization: N/D
+
+=== Quick WinRM Access ===
+Enter-PSSession -ComputerName 10.0.0.13 -Credential LAP-LENBONSIPRO\ced
+
