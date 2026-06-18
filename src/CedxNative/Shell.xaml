@@ -1,2 +1,7 @@
 <Window x:Class="CedxNative.Shell" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="CEDX Asset Manager" Height="760" Width="1280">
+    <DockPanel>
+        <Button DockPanel.Dock="Top" Content="Refresh" Command="{Binding RefreshCommand}" />
+        <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusText}" />
+        <ListBox ItemsSource="{Binding AssetsView}" DisplayMemberPath="Hostname" SelectedItem="{Binding SelectedAsset}" />
+    </DockPanel>
 </Window>
