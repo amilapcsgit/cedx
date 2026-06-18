@@ -1,73 +1,131 @@
-# CED Asset Manager & Dashboard
+# IT Asset Management Dashboard
 
-This application is a Python script that parses asset information from text files, provides a web-based dashboard using Gradio for filtering and viewing asset details, and visualizes system statistics.
+A comprehensive Windows PC asset management dashboard built with Streamlit, designed for IT managers to monitor and manage their Windows network infrastructure.
 
 ## Features
 
-*   **Automatic Dependency Installation:** Checks for required Python libraries (`pandas`, `gradio`, `matplotlib`, `plotly`) on the first run and installs them automatically using `pip`.
-*   **Asset File Parsing:** Reads and extracts structured asset information from `.txt` files located in the `attached_assets` directory.
-*   **Web Dashboard:** Provides a user-friendly interface via Gradio to:
-    *   View a list of assets with key information.
-    *   Filter assets by Hostname, OS, Manufacturer, and RAM range.
-    *   View detailed information for a selected asset in a popup modal.
-    *   Displays C Drive Free Space (GB) directly in the asset overview bubbles.
-    *   Visually highlights assets with low C Drive free space (less than 10 GB) in the overview.
-    *   Includes a 'Show Low Storage Assets' quick filter button to easily identify systems needing attention for disk space.
-*   **System Statistics:** Displays pie charts showing the distribution of Operating Systems and System Manufacturers among the parsed assets.
+### Asset Overview
+- **Interactive Asset Bubbles**: Visual grid layout displaying all assets with key information
+- **Real-time Status Monitoring**: Online/offline status indicators
+- **Low Storage Alerts**: Visual warnings for assets with less than 10GB free space on C drive
+- **Clickable AnyDesk Integration**: Direct remote access links
 
-## Requirements
+### Advanced Filtering
+- **Operating System**: Filter by Windows versions (7, 8, 10, 11, Server editions)
+- **Manufacturer**: Filter by computer manufacturers
+- **RAM Range**: Filter assets by memory amount
+- **Storage Space**: Filter by available C drive space
+- **AnyDesk ID**: Search by specific remote access IDs
+- **Quick Filters**: One-click filtering for low storage assets
 
-*   Python 3.6+
-*   Internet connection (for dependency installation on first run)
+### Detailed Asset Information
+Complete asset details including:
+- System Information (Manufacturer, Model, BIOS Version)
+- Operating System (Version, Activation Status, Language)
+- Hardware Details (CPU, GPU, RAM with Italian decimal support)
+- Network Configuration (IP Address, DHCP/Static mode)
+- Software Inventory (Office, Antivirus, Adobe/Autodesk, All Programs)
+- Storage Analysis (Drive space with status indicators)
+- Security Information (Stored credentials, Shared folders)
+- User Information (Email addresses, Account details)
 
-## Setup and Running
+### System Statistics
+- Operating System distribution pie charts
+- Manufacturer distribution visualization
+- Hardware utilization metrics
+- Storage capacity analysis
 
-1.  **Clone or download** this repository to your local machine.
-2.  **Place your asset text files** inside the `attached_assets` directory. The script expects files named in the format `IP_Hostname.txt`.
-3.  **Run the main script:**
-    ```bash
-    python main.py
-    ```
-4.  **First Run:** The script will automatically check for and install the necessary dependencies. This may take a few minutes depending on your internet connection.
-5.  **Access the Dashboard:** Once the script is running, open your web browser and go to the address provided in the terminal output (usually `http://0.0.0.0:7867`).
+### Windows 11 UI
+- Light/Dark theme toggle
+- Modern Windows 11 color scheme
+- Responsive design optimized for IT workflows
+- Professional dashboard layout
 
-## Asset File Format
+## Installation for Windows 10/11
 
-The script expects text files in the `attached_assets` directory. Each file should contain asset information with key-value pairs that the script's regex patterns can match. The filename should follow the `IP_Hostname.txt` format (e.g., `192.168.1.100_MYPC.txt`).
+### Quick Install
+1. Download all files to a folder on your Windows PC
+2. Double-click `install.bat` to install dependencies
+3. Double-click `run_dashboard.bat` to start the dashboard
+4. Open your browser to `http://localhost:5000`
 
-The script attempts to extract the following information using regex:
+### Manual Installation
+```bash
+# Install Python 3.8+ if not already installed
+# Then install dependencies:
+pip install streamlit pandas plotly
 
-*   OS Version
-*   User Email(s)
-*   CPU
-*   RAM
-*   GPU
-*   System Manufacturer
-*   System Model
-*   BIOS Version
-*   Windows Language
-*   Antivirus
-*   Office Version
-*   OS Activation
-*   Local Disks (parsed as a block)
+# Run the dashboard:
+streamlit run main.py --server.port 5000
+```
 
-Ensure your asset files contain this information in a consistent format for the script to parse it correctly.
+## Usage
 
-## Dependencies
+### Setting Up Asset Data
+1. Place your Windows PC data files (.txt format) in the `assets` folder
+2. Files should be generated by the `infopcv3.ps1` PowerShell script
+3. Click "Refresh Data" in the dashboard to load new asset files
 
-The required Python packages are listed in `requirements.txt`:
+### Daily IT Management Workflow
+1. **Quick Overview**: Check asset bubbles for system status and alerts
+2. **Storage Monitoring**: Use "Show Low Storage Assets" filter to identify systems needing attention
+3. **Remote Access**: Click AnyDesk links for direct remote connections
+4. **Detailed Analysis**: Click asset bubbles to view comprehensive system details
+5. **Reporting**: Export asset data and software inventories as needed
 
-*   pandas
-*   gradio
-*   matplotlib
-*   plotly
+### Key Information Displayed
+- **Asset Bubbles Show**: Computer name, IP address, OS version, RAM amount, C drive free space, online status
+- **Low Storage Warning**: Red highlighting for assets with <10GB free space
+- **Comprehensive Details**: All system information from scan files including credentials and software
 
-These will be automatically installed on the first run of `main.py`.
+### Filtering Options
+- **Hardware Filters**: RAM range, storage space sliders
+- **Quick Access**: Low storage assets, specific AnyDesk IDs
+- **Search**: Global search across all asset properties
+- **OS Grouping**: Normalized Windows version filtering
 
-## Contributing
+## File Structure
+```
+IT-Asset-Dashboard/
+├── main.py                 # Main dashboard application
+├── asset_parser.py         # Asset data parsing engine
+├── dashboard_components.py # UI components
+├── install.bat            # Windows installer script
+├── run_dashboard.bat      # Windows launcher script
+├── assets/                # Asset data files (.txt)
+│   └── .gitkeep
+├── .streamlit/
+│   └── config.toml        # Streamlit configuration
+└── README.md              # This file
+```
 
-(Add contributing guidelines here if applicable)
+## Technical Details
 
-## License
+### Supported Data Formats
+- Windows PC scan files (.txt) generated by infopcv3.ps1
+- Italian decimal notation support (7,9 GB → 8 GB)
+- Automatic parsing of system, hardware, software, and network information
 
-(Add license information here if applicable)
+### System Requirements
+- Windows 10/11
+- Python 3.8 or higher
+- Internet connection for initial package installation
+- Web browser (Chrome, Firefox, Edge)
+
+### Local Deployment
+The dashboard runs entirely on your local Windows PC:
+- No external dependencies or cloud services required
+- All data stays on your local network
+- Suitable for enterprise environments with security restrictions
+- Automatic dependency installation and management
+
+## Troubleshooting
+
+### Common Issues
+1. **Python not found**: Install Python from python.org and ensure it's in PATH
+2. **Package installation fails**: Run as administrator or check internet connection
+3. **No assets displayed**: Ensure .txt files are in the assets folder and click Refresh Data
+4. **AnyDesk links not working**: Ensure AnyDesk is installed on your system
+
+### Support
+This dashboard is designed for IT professionals managing Windows environments. All parsing patterns are optimized for standard Windows system information output formats.

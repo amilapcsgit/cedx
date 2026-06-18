@@ -1,0 +1,10 @@
+[project]
+name = "repl-nix-workspace"
+version = "0.1.0"
+description = "CED IT assest Manager by Amila Perera CED"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.3.0",
+    "plotly>=6.1.2",
+    "streamlit>=1.45.1",
+]

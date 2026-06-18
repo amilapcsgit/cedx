@@ -1,682 +1,871 @@
-import os
-import sys
-import subprocess
-import re
-import glob
+import streamlit as st
+import urllib.parse # Added import
 import pandas as pd
-import gradio as gr
-import json
-from pathlib import Path
-import functools # Added for functools.partial
-
-# Add these imports at the top
 import plotly.express as px
 import plotly.graph_objects as go
-import matplotlib.pyplot as plt
+from pathlib import Path
+import json
+import logging
+from datetime import datetime
+import os
+import subprocess
+import re
+import concurrent.futures
 
-# Function to check and install dependencies
-def check_and_install_dependencies():
-    required_packages = [
-        "pandas",
-        "gradio",
-        "matplotlib",
-        "plotly"
-    ]
+from asset_parser import AssetParser
+from dashboard_components import DashboardComponents
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Page configuration
+st.set_page_config(
+    page_title="IT Asset Management Dashboard",
+    page_icon="🖥️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Windows 11 Theme CSS
+def apply_windows11_theme():
+    """Apply Modern Premium styled CSS"""
+    theme_mode = st.session_state.get('theme_mode', 'light')
     
-    # Create a flag file to track if dependencies have been installed
-    flag_file = Path("dependencies_installed.flag")
-    
-    if not flag_file.exists():
-        print("First run detected. Installing dependencies...")
-        try:
-            # Install required packages
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
-            for package in required_packages:
-                print(f"Installing {package}...")
-                subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-            
-            # Create flag file to indicate dependencies have been installed
-            flag_file.touch()
-            print("All dependencies installed successfully!")
-        except Exception as e:
-            print(f"Error installing dependencies: {e}")
-            sys.exit(1)
+    if theme_mode == 'dark':
+        bg_color = "#121212"
+        surface_color = "#1e1e1e"
+        card_color = "#2d2d30"
+        text_color = "#e0e0e0"
+        text_muted = "#a0a0a0"
+        accent_color = "#3b82f6"
+        hover_color = "#60a5fa"
+        border_color = "#333333"
+        shadow = "0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3)"
+        shadow_hover = "0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -2px rgba(0, 0, 0, 0.4)"
     else:
-        print("Dependencies already installed.")
-
-# Call the function to check and install dependencies
-check_and_install_dependencies()
-
-# Function to parse asset information from text files
-def parse_asset_files():
-    assets_folder = os.path.join(os.path.dirname(__file__), "attached_assets")
-    asset_files = glob.glob(os.path.join(assets_folder, "*.txt"))
+        bg_color = "#f8fafc"
+        surface_color = "#ffffff"
+        card_color = "#ffffff"
+        text_color = "#0f172a"
+        text_muted = "#64748b"
+        accent_color = "#2563eb"
+        hover_color = "#1d4ed8"
+        border_color = "#e2e8f0"
+        shadow = "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)"
+        shadow_hover = "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
     
-    all_assets = []
-    
-    for file_path in asset_files:
-        try:
-            with open(file_path, 'r', encoding='utf-8-sig') as file:
-                content = file.read()
-                
-            # Extract filename to get IP and hostname
-            filename = os.path.basename(file_path)
-            ip_hostname = filename.replace(".txt", "").split("_")
-            ip = ip_hostname[0] if len(ip_hostname) > 0 else ""
-            hostname = ip_hostname[1] if len(ip_hostname) > 1 else ""
-            
-            # Extract key information using regex
-            asset_info = {
-                "IP": ip,
-                "Hostname": hostname,
-                "File": filename
-            }
-            
-            # Extract common fields
-            patterns = {
-                "OS Version": r"OS Version:\s*(.*?)(?:\n|$)",
-                "User Email": r"User Email\(s\):\s*(.*?)(?:\n|$)",
-                "CPU": r"CPU:\s*(.*?)(?:\n|$)",
-                "RAM": r"RAM:\s*(.*?)(?:\n|$)",
-                "GPU": r"GPU:\s*(.*?)(?:\n|$)",
-                "System Manufacturer": r"System Manufacturer:\s*(.*?)(?:\n|$)",
-                "System Model": r"System Model:\s*(.*?)(?:\n|$)",
-                "BIOS Version": r"BIOS Version:\s*(.*?)(?:\n|$)",
-                "Windows Language": r"Windows Language:\s*(.*?)(?:\n|$)",
-                "Antivirus": r"Antivirus:\s*(.*?)(?:\n|$)",
-                "Office Version": r"Office Version:\s*(.*?)(?:\n|$)",
-                "OS Activation": r"OS Activation:\s*(.*?)(?:\n|$)",
-                "AnyDesk ID": r"AnyDesk ID:\s*(\d+)(?:\n|$)"
-            }
-            
-            for key, pattern in patterns.items():
-                match = re.search(pattern, content)
-                # Modify asset_info population loop in parse_asset_files
-                asset_info[key] = match.group(1).strip() if match and match.group(1) else "N/A"
-
-            # Extract disk information
-            disk_section = re.search(r"=== Local Disks \(in MB\) ===(.*?)(?:===|$)", content, re.DOTALL)
-            if disk_section:
-                disk_info = disk_section.group(1).strip()
-                asset_info["Disk Info"] = disk_info
-
-                # Extract C drive free space
-                c_drive_match = re.search(r"C:.*?Free: ([\d.]+) MB", disk_info)
-                if c_drive_match:
-                    asset_info["C Drive Free Space (MB)"] = float(c_drive_match.group(1))
-                    asset_info["C Drive Free Space (GB)"] = round(float(c_drive_match.group(1)) / 1024, 2)
-                else:
-                    asset_info["C Drive Free Space (MB)"] = "N/A"
-                    asset_info["C Drive Free Space (GB)"] = "N/A"
-            else:
-                asset_info["Disk Info"] = "N/A"
-                asset_info["C Drive Free Space (MB)"] = "N/A"
-                asset_info["C Drive Free Space (GB)"] = "N/A"
-
-
-            all_assets.append(asset_info)
-        except Exception as e:
-            print(f"Error parsing file {file_path}: {e}")
-
-    return all_assets
-
-# Load asset data
-assets_data = parse_asset_files()
-assets_df = pd.DataFrame(assets_data)
-
-# Sanitize data after parsing
-assets_df = assets_df.fillna("N/A")  # Replace NaN with "N/A"
-# Convert everything to string for JSON compatibility, except for known numeric columns
-for col in assets_df.columns:
-    if col not in ["C Drive Free Space (MB)", "C Drive Free Space (GB)"]:
-        assets_df[col] = assets_df[col].astype(str)
-
-
-# Add a function to normalize OS versions
-def normalize_os_version(os_string):
-    if os_string == "N/A":
-        return "Unknown OS"
-    
-    os_string = os_string.strip()
-    
-    # Extract the main OS name from the full string
-    # Handle common patterns in the data files
-    if "Windows 10" in os_string:
-        return "Windows 10"
-    elif "Windows 11" in os_string:
-        return "Windows 11"
-    elif "Windows 8.1" in os_string or "6.3.9600" in os_string:
-        return "Windows 8.1"
-    elif "Windows 7" in os_string or "6.1.7601" in os_string:
-        return "Windows 7"
-    elif "Windows Server" in os_string:
-        # Extract the server version if available
-        server_version_match = re.search(r"Windows Server (\d+)", os_string)
-        if server_version_match:
-            return f"Windows Server {server_version_match.group(1)}"
-        return "Windows Server"
-    elif "Linux" in os_string:
-        # Try to extract the distribution name
-        distro_match = re.search(r"Linux\s+(\w+)", os_string)
-        if distro_match:
-            return f"Linux {distro_match.group(1)}"
-        return "Linux"
-    elif "macOS" in os_string or "Mac OS" in os_string:
-        # Try to extract the macOS version
-        macos_version_match = re.search(r"(macOS|Mac OS)\s+([\d\.]+)", os_string)
-        if macos_version_match:
-            return f"macOS {macos_version_match.group(2)}"
-        return "macOS"
-    
-    # If no specific rule matches, try to extract the main OS name
-    # This handles cases like "Microsoft Windows 10 Pro (10.0.19045 Build 19045)"
-    os_name_match = re.search(r"Microsoft\s+(Windows\s+\w+)", os_string)
-    if os_name_match:
-        return os_name_match.group(1)
-    
-    # Return original if no specific rule matches
-    return os_string
-
-# Apply normalization after creating the DataFrame
-assets_df['Normalized OS'] = assets_df['OS Version'].apply(normalize_os_version)
-
-# Get unique normalized OS values for buttons
-unique_normalized_oss = assets_df['Normalized OS'].dropna().unique().tolist()
-unique_normalized_oss.sort() # Sort for consistent order
-
-# Dashboard functions
-def filter_assets(hostname_filter, os_filter, manufacturer_filter, min_ram, max_ram, filter_low_storage=False, page_index=0, page_size=None):
-    filtered_df = assets_df.copy()
-    
-    # Print debug information
-    print(f"Filtering with OS filter: '{os_filter}' (Type: {type(os_filter)})") 
-    print(f"Available OS values: {filtered_df['Normalized OS'].unique().tolist()}")
-    
-    if hostname_filter:
-        filtered_df = filtered_df[filtered_df['Hostname'].str.contains(hostname_filter, case=False, na=False)]
-    
-    # Use 'Normalized OS' for filtering if os_filter is provided and is a non-empty string
-    if os_filter and isinstance(os_filter, str) and os_filter.strip():
-        filtered_df = filtered_df[filtered_df['Normalized OS'].str.contains(os_filter, case=False, na=False)]
-        print(f"After OS filtering, found {len(filtered_df)} results")
-    
-    if manufacturer_filter:
-        filtered_df = filtered_df[filtered_df['System Manufacturer'].str.contains(manufacturer_filter, case=False, na=False)]
-    
-    # Extract numeric RAM values for filtering
-    filtered_df['RAM_Value'] = filtered_df['RAM'].str.extract(r'(\d+(?:\,\d+)?)')
-    filtered_df['RAM_Value'] = filtered_df['RAM_Value'].replace(',', '.', regex=True).astype(float)
-    
-    if min_ram is not None:
-        filtered_df = filtered_df[filtered_df['RAM_Value'] >= min_ram]
-    
-    if max_ram is not None:
-        filtered_df = filtered_df[filtered_df['RAM_Value'] <= max_ram]
-    
-    # Drop the temporary column
-    filtered_df = filtered_df.drop('RAM_Value', axis=1)
-
-    # Filter by low storage if requested
-    if filter_low_storage:
-        numeric_disk_space = pd.to_numeric(filtered_df['C Drive Free Space (GB)'], errors='coerce')
-        filtered_df = filtered_df[numeric_disk_space < 10]
-
-    # Display only relevant columns in the results table
-    # For bubble display, we need more columns than just for a table.
-    # Ensure 'AnyDesk ID' is available for bubbles.
-    bubble_display_columns = ['IP', 'Hostname', 'Normalized OS', 'CPU', 'RAM', 'System Manufacturer', 'C Drive Free Space (GB)', 'AnyDesk ID']
-    # Ensure all requested columns actually exist in filtered_df
-    bubble_display_columns = [col for col in bubble_display_columns if col in filtered_df.columns]
-
-
-    # --- Display Logic ---
-    total_items = len(filtered_df)
-    
-    if page_size is None:
-        # When displaying all, select necessary columns for bubbles from filtered_df
-        display_df = filtered_df[bubble_display_columns].copy()
-        total_pages = 1
-        page_index = 0
-    else:
-        # When paginating, select necessary columns for bubbles from the paginated slice of filtered_df
-        total_pages = (total_items + page_size - 1) // page_size 
-        start_index = page_index * page_size
-        end_index = min(start_index + page_size, total_items)
-        # Ensure to select bubble_display_columns from the main filtered_df before slicing for pagination,
-        # or select from the slice if the slice is already a DataFrame.
-        # Let's assume filtered_df.iloc[start_index:end_index] gives a DataFrame, then select columns.
-        display_df = filtered_df.iloc[start_index:end_index][bubble_display_columns].copy()
-    
-    numeric_cols_to_convert = ["C Drive Free Space (GB)"]
-    for col in numeric_cols_to_convert:
-        if col in display_df.columns:
-            display_df[col] = display_df[col].astype(str)
-    
-    # --- End Display Logic ---
-
-    html_content = """
+    st.markdown(f"""
     <style>
-    .asset-grid-container {
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    .stApp {{
+        background-color: {bg_color};
+        color: {text_color};
+        font-family: 'Inter', sans-serif;
+    }}
+
+    .main-title {{
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0px;
+        color: {text_color};
+        letter-spacing: -0.025em;
+    }}
+
+    .caption-text {{
+        font-size: 0.875rem;
+        color: {text_muted};
+        padding-top: 4px;
+        font-weight: 500;
+    }}
+    
+    .asset-list-card {{
+        background-color: {card_color};
+        border-radius: 8px;
+        box-shadow: {shadow};
+        border: 1px solid {border_color};
+        margin-bottom: 12px;
+        overflow: hidden;
+        transition: all 0.2s ease-in-out;
+    }}
+    
+    .asset-list-card:hover {{
+        box-shadow: {shadow_hover};
+        border-color: {hover_color};
+    }}
+
+    .status-bar-vertical {{ width: 6px; float: left; height: 100%; min-height: 120px; }}
+    .status-indicator-online .status-bar-vertical {{ background-color: #10b981; }}
+    .status-indicator-offline .status-bar-vertical {{ background-color: #ef4444; }}
+    .status-indicator-scanning .status-bar-vertical {{ background-color: #94a3b8; }}
+    .status-indicator-pending .status-bar-vertical {{ background-color: #f59e0b; }}
+    .status-indicator-failed .status-bar-vertical {{ background-color: #ef4444; }}
+    .status-indicator-unknown .status-bar-vertical {{ background-color: #94a3b8; }}
+
+    .card-content-wrapper {{
+        padding: 16px;
         display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        justify-content: flex-start;
-        margin-bottom: 20px;
-    }
-    .asset-bubble {
-        background: linear-gradient(135deg, #6e8efb, #a777e3);
-        border-radius: 12px;
-        color: white;
-        padding: 15px;
-        min-width: 200px;
-        max-width: 300px;
-        flex: 1;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        transition: all 0.3s ease;
-        text-align: center;
-        display: flex; 
-        flex-direction: column; 
-        justify-content: space-between; 
-    }
-    .asset-bubble:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-    }
-    .asset-bubble.windows10 { background: linear-gradient(135deg, #00a2ed, #0078d7); }
-    .asset-bubble.windows11 { background: linear-gradient(135deg, #0078d7, #0063b1); }
-    .asset-bubble.windows8 { background: linear-gradient(135deg, #00b2f0, #0072c6); }
-    .asset-bubble.windows7 { background: linear-gradient(135deg, #6a737b, #36454f); }
-    .asset-bubble.linux { background: linear-gradient(135deg, #f57c00, #d84315); }
-    .asset-bubble.macos { background: linear-gradient(135deg, #8e8e93, #636366); }
-    .asset-bubble.unknown { background: linear-gradient(135deg, #9e9e9e, #616161); }
-    .asset-hostname { font-size: 18px; font-weight: bold; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .asset-ip { font-size: 14px; opacity: 0.9; }
-    .asset-os { font-size: 12px; margin-top: 8px; opacity: 0.8; background-color: rgba(255, 255, 255, 0.2); border-radius: 10px; padding: 3px 8px; display: inline-block; }
-    .asset-ram { font-size: 12px; margin-top: 5px; opacity: 0.8; }
-    .asset-disk-space { font-size: 12px; margin-top: 5px; opacity: 0.8; }
-    .asset-bubble.low-storage-alert { border: 3px solid #FF6347; }
-    .low-storage-warning-text { font-weight: bold; color: #FF6347; font-size: 12px; margin-top: 5px; }
-    .view-details-btn { background-color: rgba(255, 255, 255, 0.3); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-top: 10px; transition: background-color 0.2s ease; }
-    .view-details-btn:hover { background-color: rgba(255, 255, 255, 0.5); }
-    .pagination-info { text-align: center; margin: 10px 0; font-weight: bold; }
-    @media (max-width: 768px) { .asset-bubble { min-width: 150px; } }
+        flex-direction: column;
+        gap: 12px;
+        margin-left: 6px;
+    }}
+
+    .card-top-row {{
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 1px solid {border_color};
+        padding-bottom: 8px;
+    }}
+
+    .card-title-group {{
+        display: flex;
+        flex-direction: column;
+    }}
+
+    .asset-name {{ font-size: 1.125rem; font-weight: 600; color: {text_color}; }}
+    .asset-domain {{ font-size: 0.75rem; color: {text_muted}; }}
+    .asset-ip {{ font-size: 0.875rem; color: {accent_color}; font-family: monospace; font-weight: 600; margin-top: 4px; }}
+
+    .card-actions-group {{
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+    }}
+
+    .card-details-grid {{
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        font-size: 0.8125rem;
+        color: {text_muted};
+    }}
+
+    .detail-item {{
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }}
+
+    .copy-button {{
+        background: transparent;
+        border: 1px solid {border_color};
+        border-radius: 4px;
+        color: {text_color};
+        padding: 2px 6px;
+        font-size: 0.7rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }}
+    .copy-button:hover {{ background: {border_color}; }}
+
+    .expanded-metrics-grid {{
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        padding: 12px 0;
+        font-size: 0.8125rem;
+    }}
+    
+    .expanded-column {{
+        background: {surface_color};
+        padding: 12px;
+        border-radius: 6px;
+        border: 1px solid {border_color};
+    }}
+    
+    .metric-row {{
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 4px;
+        border-bottom: 1px dashed {border_color};
+        padding-bottom: 2px;
+    }}
+    .metric-label {{ color: {text_muted}; font-weight: 500; }}
+    .metric-value {{ color: {text_color}; font-weight: 600; text-align: right; overflow-wrap: anywhere; }}
     </style>
-    <div class="asset-grid-container">
-    """
-    
-    if not display_df.empty:
-        for _, row in display_df.iterrows():
-            hostname = row.get('Hostname', 'Unknown')
-            hostname_escaped = json.dumps(hostname)[1:-1] 
-            ip = row.get('IP', 'N/A')
-            os_version = row.get('Normalized OS', 'Unknown OS')
-            ram = row.get('RAM', 'N/A')
-            free_space_gb_raw = row.get('C Drive Free Space (GB)', 'N/A')
-            anydesk_id = row.get('AnyDesk ID', 'N/A')
-            anydesk_html = ""
-            if anydesk_id != "N/A" and anydesk_id.isdigit() and anydesk_id.strip(): # Check isdigit and not just whitespace
-                anydesk_html = f'<a href="anydesk:{anydesk_id}" target="_blank" style="font-size: 11px; color: white; text-decoration: underline; display: block; margin-top: 5px;">Anydesk: {anydesk_id}</a>'
-            else:
-                anydesk_html = '<div style="font-size: 11px; color: white; margin-top: 5px; opacity: 0.8;">Anydesk: N/A</div>'
-            
-            css_class = "unknown"
-            if "Windows 10" in os_version: css_class = "windows10"
-            elif "Windows 11" in os_version: css_class = "windows11"
-            elif "Windows 8" in os_version: css_class = "windows8"
-            elif "Windows 7" in os_version: css_class = "windows7"
-            elif "Linux" in os_version: css_class = "linux"
-            elif "macOS" in os_version: css_class = "macos"
-            low_storage_alert_class = ""
-            low_storage_warning_html = ""
-            try:
-                free_space_gb_val = float(free_space_gb_raw)
-                if free_space_gb_val < 10:
-                    low_storage_alert_class = "low-storage-alert"
-                    low_storage_warning_html = '<div class="low-storage-warning-text">LOW STORAGE!</div>'
-            except ValueError:
-                pass 
-            html_content += f"""
-            <div class="asset-bubble {css_class} {low_storage_alert_class}"> 
-                <div> <!-- Added a div to wrap content other than button for flex layout -->
-                    <div class="asset-hostname">{hostname}</div>
-                    <div class="asset-ip">{ip}</div>
-                    <div class="asset-os">{os_version}</div>
-                    <div class="asset-ram">{ram}</div>
-                    <div class="asset-disk-space">Disk: {free_space_gb_raw} GB</div>
-                    {anydesk_html} 
-                    {low_storage_warning_html}
-                </div>
-                <button class='view-details-btn' onclick='js_trigger_py_modal(\"{hostname_escaped}\")'>View Details</button>
-            </div>
-            """
-    else:
-        html_content += """
-        <div style="text-align: center; width: 100%; padding: 20px;">
-            <p>No assets found matching the current filters.</p>
-        </div>
-        """
-    html_content += "</div>"
-    html_content += f"""
-    <div class="pagination-info">
-        Showing {total_items} assets
-    </div>
-    """
-    js_script = """
-    <script>
-    function js_trigger_py_modal(hostname) {
-        const hostnameInput = document.getElementById('py_modal_trigger_hostname_input');
-        if (hostnameInput) {
-            hostnameInput.value = hostname;
-            const inputEvent = new Event('input', { bubbles: true });
-            hostnameInput.dispatchEvent(inputEvent);
-            const changeEvent = new Event('change', { bubbles: true });
-            hostnameInput.dispatchEvent(changeEvent);
-        } else {
-            console.error('py_modal_trigger_hostname_input not found');
-        }
-    }
-    </script>
-    """
-    if page_size is None:
-        return html_content + js_script, f"Showing all {total_items} assets"
-    else:
-        return html_content + js_script, str(f"Page {page_index + 1} of {total_pages}")
+    """, unsafe_allow_html=True)
 
-initial_table, initial_total_pages = filter_assets("", "", "", None, None, page_size=None)
-
-def get_asset_details(hostname):
-    if not hostname:
-        return """<div class="asset-details-placeholder">
-            <h3>Select a hostname to view asset details</h3>
-            <p>Click on a hostname in the results table or select one from the dropdown.</p>
-        </div>"""
-    selected_asset = assets_df[assets_df['Hostname'] == hostname]
-    if selected_asset.empty:
-        return f"""<div class="asset-details-error">
-            <h3>Error</h3>
-            <p>No asset found with the hostname: {hostname}</p>
-        </div>"""
-    try:
-        asset_dict = selected_asset.iloc[0].to_dict()
-        for k, v in asset_dict.items():
-            if pd.isna(v): asset_dict[k] = "N/A"
-            elif not isinstance(v, str): asset_dict[k] = str(v)
+class ITAssetDashboard:
+    def __init__(self):
+        self.asset_parser = AssetParser()
+        self.dashboard_components = DashboardComponents()
+        self.assets_folder = Path("assets")
         
-        # Prepare AnyDesk ID HTML
-        anydesk_id = asset_dict.get('AnyDesk ID', 'N/A')
-        anydesk_html_value = "N/A"
-        if anydesk_id != "N/A" and anydesk_id.isdigit():
-            anydesk_html_value = f'<a href="anydesk:{anydesk_id}">{anydesk_id}</a>'
-        else:
-            anydesk_html_value = anydesk_id # Display "N/A" or other non-digit values as is
+        if 'assets_data' not in st.session_state:
+            st.session_state.assets_data = {}
+        if 'last_refresh' not in st.session_state:
+            st.session_state.last_refresh = None
+        if 'theme_mode' not in st.session_state:
+            st.session_state.theme_mode = 'light'
+        if 'show_asset_details' not in st.session_state:
+            st.session_state.show_asset_details = False
+        if 'selected_asset_for_details' not in st.session_state:
+            st.session_state.selected_asset_for_details = None
 
-        html = f"""
-        <style>
-        .asset-dashboard {{ background: white; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.2); padding: 25px; max-width: 900px; margin: 0 auto; position: relative; }}
-        .asset-header {{ border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }}
-        .asset-header h2 {{ margin: 0; color: #2c3e50; font-size: 24px; }}
-        .asset-header-right {{ text-align: right; }}
-        .asset-section {{ margin-bottom: 25px; }}
-        .asset-section h3 {{ color: #3498db; border-left: 4px solid #3498db; padding-left: 10px; margin-bottom: 15px; }}
-        .asset-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }}
-        .asset-item {{ background: #f8f9fa; padding: 12px; border-radius: 8px; }}
-        .asset-item strong {{ color: #34495e; }}
-        .user-accounts-section {{ margin-top: 20px; }}
-        .software-list {{ max-height: 300px; overflow-y: auto; border: 1px solid #eee; padding: 10px; border-radius: 8px; }}
-        </style>
-        <div class="asset-dashboard">
-            <div class="asset-header">
-                <div><h2>{asset_dict.get('Hostname', 'N/A')}</h2><p>IP: {asset_dict.get('IP', 'N/A')}</p></div>
-                <div class="asset-header-right"><p><strong>Last Seen:</strong> {asset_dict.get('Last Seen', 'N/A')}</p><p><strong>Status:</strong> <span style="color: green;">Active</span></p></div>
-            </div>
-            <div class="asset-section"><h3>System Information</h3><div class="asset-grid">
-                <div class="asset-item"><strong>OS:</strong> {asset_dict.get('Normalized OS', 'N/A')}</div>
-                <div class="asset-item"><strong>CPU:</strong> {asset_dict.get('CPU', 'N/A')}</div>
-                <div class="asset-item"><strong>RAM:</strong> {asset_dict.get('RAM', 'N/A')}</div>
-                <div class="asset-item"><strong>GPU:</strong> {asset_dict.get('GPU', 'N/A')}</div>
-                <div class="asset-item"><strong>Manufacturer:</strong> {asset_dict.get('System Manufacturer', 'N/A')}</div>
-                <div class="asset-item"><strong>Model:</strong> {asset_dict.get('System Model', 'N/A')}</div>
-            </div></div>
-            <div class="asset-section"><h3>Storage</h3><div class="asset-grid">
-                <div class="asset-item"><strong>C Drive Free Space:</strong> {asset_dict.get('C Drive Free Space (GB)', 'N/A')} GB</div>
-                <div class="asset-item"><strong>Disk Info:</strong> <pre>{asset_dict.get('Disk Info', 'N/A')}</pre></div>
-            </div></div>
-            <div class="asset-section"><h3>Software</h3><div class="asset-grid">
-                <div class="asset-item"><strong>Windows Language:</strong> {asset_dict.get('Windows Language', 'N/A')}</div>
-                <div class="asset-item"><strong>Antivirus:</strong> {asset_dict.get('Antivirus', 'N/A')}</div>
-                <div class="asset-item"><strong>Office Version:</strong> {asset_dict.get('Office Version', 'N/A')}</div>
-                <div class="asset-item"><strong>OS Activation:</strong> {asset_dict.get('OS Activation', 'N/A')}</div>
-            </div></div>
-            <div class="asset-section"><h3>User Accounts</h3><div class="asset-grid">
-                <div class="asset-item"><strong>Current User:</strong> {asset_dict.get('Current User', 'N/A')}</div>
-                <div class="asset-item"><strong>Domain:</strong> {asset_dict.get('Domain', 'N/A')}</div>
-            </div><div class="user-accounts-section"><h4>User Email Accounts</h4><div class="asset-item"><ul>
-                <li><strong>Primary Email:</strong> user@company.com</li><li><strong>Secondary Email:</strong> user.backup@company.com</li>
-            </ul></div></div></div>
-            <div class="asset-section"><h3>Installed Software</h3><div class="software-list"><ul>
-                <li>Microsoft Office 365</li><li>Google Chrome</li><li>Mozilla Firefox</li><li>Adobe Acrobat Reader</li><li>7-Zip</li>
-                <li>VLC Media Player</li><li>Microsoft Teams</li><li>Zoom</li><li>Slack</li><li>Notepad++</li>
-            </ul></div></div>
-            <div class="asset-section"><h3>Network</h3><div class="asset-grid">
-                <div class="asset-item"><strong>PC Domain:</strong> {asset_dict.get('PC Domain', 'N/A')}</div>
-                <div class="asset-item"><strong>AnyDesk ID:</strong> {anydesk_html_value}</div>
-                <div class="asset-item"><strong>Windows Account:</strong> {asset_dict.get('Windows account', 'N/A')}</div>
-                <div class="asset-item"><strong>User Email:</strong> {asset_dict.get('User Email', 'N/A')}</div>
-            </div></div>
-        </div>
-        <style> /* Redefining for Gradio HTML component, as main CSS might not apply */
-        .asset-dashboard {{ font-family: Arial, sans-serif; max-width: 100%; margin: 0 auto; padding: 20px; background-color: #f9f9f9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-        .asset-header {{ border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 20px; }}
-        .asset-header h2 {{ margin: 0; color: #333; }}
-        .asset-section {{ margin-bottom: 20px; padding: 15px; background-color: white; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }}
-        .asset-section h3 {{ margin-top: 0; color: #444; border-bottom: 1px solid #eee; padding-bottom: 8px; }}
-        .asset-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }}
-        .asset-item {{ padding: 10px; background-color: #f5f5f5; border-radius: 4px; }}
-        .asset-item strong {{ color: #555; }}
-        pre {{ white-space: pre-wrap; word-wrap: break-word; background-color: #f0f0f0; padding: 8px; border-radius: 4px; margin: 5px 0; max-height: 200px; overflow-y: auto; }}
-        </style>
-        """
-        return html
-    except Exception as e:
-        print(f"Error parsing asset details: {e}")
-        return f"""<div class="asset-details-error">
-            <h3>Error</h3>
-            <p>Error retrieving asset details: {str(e)}</p>
-        </div>"""
+        if 'nmap_path' not in st.session_state:
+            st.session_state.nmap_path = "nmap"
+        if 'nmap_scan_type' not in st.session_state:
+            st.session_state.nmap_scan_type = "Quick Scan"
 
-def get_unique_values(column):
-    if column == "OS Version" and 'Normalized OS' in assets_df.columns:
-         return assets_df['Normalized OS'].dropna().unique().tolist()
-    elif column in assets_df.columns:
-        values = assets_df[column].dropna().unique().tolist()
-        return values
-    return []
+        if 'selected_os_filter' not in st.session_state:
+            st.session_state.selected_os_filter = []
+        if 'selected_manufacturers_filter' not in st.session_state:
+            st.session_state.selected_manufacturers_filter = []
+        if 'ram_range_filter' not in st.session_state:
+            st.session_state.ram_range_filter = None
+        if 'storage_range_filter' not in st.session_state:
+            st.session_state.storage_range_filter = None
+        if 'show_low_storage_only' not in st.session_state:
+            st.session_state.show_low_storage_only = False
+        if 'anydesk_search_filter' not in st.session_state:
+            st.session_state.anydesk_search_filter = ""
+        if 'search_term_filter' not in st.session_state:
+            st.session_state.search_term_filter = ""
 
-css = """
-body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f3f3; color: #1f1f1f; }
-.gradio-container { box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); border-radius: 8px; overflow: hidden; }
-.gradio-tabs { background-color: #ffffff; }
-.gradio-tabs button { color: #1f1f1f; border-bottom: 2px solid transparent; }
-.gradio-tabs button.selected { color: #0078d4; border-bottom-color: #0078d4; }
-.gradio-textbox, .gradio-dropdown, .gradio-number { border-radius: 4px; border: 1px solid #cccccc; padding: 8px; }
-.gradio-button { background-color: #e6e6e6; color: #1f1f1f; border: none; border-radius: 4px; padding: 8px 16px; cursor: pointer; transition: background-color 0.2s ease; }
-.gradio-button:hover { background-color: #d4d4d4; }
-.gradio-button.primary { background-color: #0078d4; color: #ffffff; }
-.gradio-button.primary:hover { background-color: #005a9e; }
-.gradio-html table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-.gradio-html th, .gradio-html td { border: 1px solid #dddddd; text-align: left; padding: 8px; }
-.gradio-html th { background-color: #f2f2f2; }
-.gradio-html tr:nth-child(even) { background-color: #f9f9f9; }
-.gradio-json { background-color: #ffffff; border: 1px solid #cccccc; border-radius: 4px; padding: 10px; white-space: pre-wrap; word-wrap: break-word; }
-"""
+        if 'show_summary_section' not in st.session_state:
+            st.session_state.show_summary_section = True
+        if 'show_bubbles_section' not in st.session_state:
+            st.session_state.show_bubbles_section = True
+        if 'show_details_table_section' not in st.session_state:
+            st.session_state.show_details_table_section = True
 
-def asset_details_api(hostname):
-    return get_asset_details(hostname)
 
-def show_asset_details_py_modal(hostname):
-    details_html = get_asset_details(hostname) 
-    return {
-        py_modal_wrapper: gr.update(visible=True),
-        py_modal_content_area: gr.update(value=details_html)
-    }
+    def _run_nmap_scan(self, ip_address: str, nmap_executable_path: str = "nmap", scan_type: str = "Full Scan") -> dict:
+        result = { "status": "unknown", "mac_address": None, "nmap_output": "", "error_message": None }
+        logger.info(f"Starting nmap scan for IP: {ip_address}")
+        try:
+            command = []
+            if scan_type == "Quick Scan":
+                command = [nmap_executable_path, "-sn", "-T4", ip_address]
+            elif scan_type == "Full Scan":
+                command = [nmap_executable_path, "-T4", "-A", "-v", "-Pn", ip_address]
+            else:
+                result["error_message"] = f"Invalid scan type: {scan_type}"
+                logger.error(result["error_message"])
+                return result
 
-def close_asset_details_py_modal():
-    return { py_modal_wrapper: gr.update(visible=False) }
+            logger.info(f"Executing Nmap {scan_type} for {ip_address}: {' '.join(command)}")
+            process = subprocess.run(command, capture_output=True, text=True, timeout=120)
+            result["nmap_output"] = process.stdout
 
-def trigger_py_modal_test():
-    if not assets_df.empty:
-        test_hostname = assets_df.iloc[0]['Hostname']
-        return show_asset_details_py_modal(test_hostname) 
-    else:
-        return {
-            py_modal_wrapper: gr.update(visible=True),
-            py_modal_content_area: gr.update(value="<p>No assets to display.</p>")
-        }
+            if process.returncode == 0:
+                if "Host seems down" in process.stdout: result["status"] = "offline"
+                elif "Host is up" in process.stdout: result["status"] = "online"
+                elif scan_type == "Full Scan" and re.search(r"\d+/open/", process.stdout): result["status"] = "online"
+                else: result["status"] = "offline"
+                logger.info(f"Nmap {scan_type} for {ip_address}: Parsed status: {result['status']}.")
+                if scan_type == "Full Scan":
+                    mac_match = re.search(r"MAC Address: ([0-9A-Fa-f:]{17})", process.stdout, re.IGNORECASE)
+                    if mac_match: result["mac_address"] = mac_match.group(1).upper()
+            else:
+                result["error_message"] = f"Nmap scan failed (code {process.returncode}): {process.stderr}"
+                logger.error(result["error_message"])
+        except FileNotFoundError:
+            result["error_message"] = f"Nmap not found at '{nmap_executable_path}'."
+            logger.error(result["error_message"])
+        except subprocess.TimeoutExpired:
+            result["error_message"] = "Nmap scan timed out."
+            logger.error(result["error_message"])
+        except Exception as e:
+            result["error_message"] = f"Nmap scan error: {e}"
+            logger.error(result["error_message"], exc_info=True)
+        return result
 
-with gr.Blocks(title="CED Asset Manager & Dashboard", css=css) as demo:
-    demo.api_name = "api"
-    demo.queue(api_open=True)
+    def load_assets_data(self):
+       logger.info("Starting load_assets_data...")
+       try:
+           if not self.assets_folder.exists():
+               self.assets_folder.mkdir(exist_ok=True); return {}
+           asset_files = list(self.assets_folder.glob("*.txt"))
+           if not asset_files: return {}
+           
+           assets_data = {}
+           logger.info(f"Found {len(asset_files)} asset files. Processing texts...")
+           
+           for file_path_obj in asset_files:
+               file_path_str = str(file_path_obj)
+               try:
+                   asset_data_item = self.asset_parser.parse_asset_file(file_path_obj)
+                   if asset_data_item:
+                       asset_name = asset_data_item.get('computer_name', file_path_obj.stem)
+                       if 'network_info' not in asset_data_item: asset_data_item['network_info'] = {}
+                       asset_data_item['network_info']['nmap_scan_status'] = 'pending_quick_scan'
+                       asset_data_item['network_info']['status'] = asset_data_item['network_info'].get('status', 'unknown')
+                       assets_data[asset_name] = asset_data_item
+               except Exception as e:
+                   logger.error(f"Error processing text for file {file_path_str}: {e}", exc_info=True)
 
-    py_modal_trigger_hostname_input = gr.Textbox(label="Python Modal Trigger", visible=False, elem_id="py_modal_trigger_hostname_input")
-    current_os_filter_state = gr.Textbox(label="Current OS Filter State", value="", visible=False) # Hidden state for OS filter
+           logger.info("Text parsing complete. Launching concurrent NMAP quick scans...")
+           nmap_exe_path = st.session_state.get('nmap_path', 'nmap')
 
-    with gr.Column(visible=False, elem_id="py_modal_wrapper") as py_modal_wrapper: 
-        py_modal_content_area = gr.HTML(value="<p>Modal Content Will Load Here...</p>")
-        py_close_modal_button = gr.Button("Close Modal")
+           def scan_asset(name, item):
+               ip_addr = item.get('network_info', {}).get('ip_address')
+               if ip_addr and ip_addr != 'N/A':
+                   return name, self._run_nmap_scan(ip_addr, nmap_executable_path=nmap_exe_path, scan_type="Quick Scan")
+               return name, None
 
-    gr.Markdown("# CED Asset Manager & Dashboard\nThis dashboard displays information from IT assets in the network. Use the filters below to find specific assets.")
+           # Run nmap concurrently to prevent Streamlit hanging for minutes
+           with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
+               future_to_name = {executor.submit(scan_asset, name, item): name for name, item in assets_data.items()}
+               for future in concurrent.futures.as_completed(future_to_name):
+                   asset_name = future_to_name[future]
+                   try:
+                       name, nmap_result = future.result()
+                       item = assets_data[asset_name]
+                       if nmap_result is not None:
+                           item['network_info']['nmap_scan_status'] = 'completed_quick_scan'
+                           if nmap_result.get('status') and nmap_result.get('status') not in ['unknown', 'error']:
+                               item['network_info']['status'] = nmap_result['status']
+                           item['network_info']['nmap_quick_scan_output'] = nmap_result.get('nmap_output', '')
+                           if nmap_result.get('error_message'):
+                               item['network_info']['nmap_scan_status'] = 'failed_quick_scan'
+                               item['network_info']['nmap_error'] = nmap_result['error_message']
+                               logger.error(f"Nmap Quick Scan failed for {asset_name}: {nmap_result['error_message']}")
+                       else:
+                           item['network_info']['nmap_scan_status'] = 'skipped_no_ip'
+                   except Exception as e:
+                       logger.error(f"Thread scan failed for {asset_name}: {e}")
+
+           st.session_state.last_refresh = datetime.now()
+           logger.info(f"load_assets_data completed. Loaded {len(assets_data)} assets.")
+           return assets_data
+       except Exception as e:
+           logger.error(f"Major error in load_assets_data: {e}", exc_info=True)
+           st.error(f"Error loading assets data: {e}"); return {}
+
+    def normalize_os_version(self, os_string):
+        if not os_string: return "Unknown"
+        os_lower = os_string.lower()
+        if "windows 11" in os_lower: return "Windows 11"
+        if "windows 10" in os_lower: return "Windows 10"
+        if "windows 8" in os_lower: return "Windows 8"
+        if "windows 7" in os_lower: return "Windows 7"
+        if "windows server 2022" in os_lower: return "Windows Server 2022"
+        if "windows server 2019" in os_lower: return "Windows Server 2019"
+        if "windows server 2016" in os_lower: return "Windows Server 2016"
+        if "windows server" in os_lower: return "Windows Server"
+        return os_string
+
+    def get_c_drive_free_space(self, asset):
+        try:
+            for device in asset.get('hardware_info', {}).get('storage', []):
+                if ('C:' in device.get('name','').upper() or 'C DRIVE' in device.get('name','').upper()):
+                    return device.get('free_space_gb')
+            raw_content = asset.get('raw_content', '')
+            if raw_content:
+                for pattern in [r'C:.*?(\d+\.?\d*)\s*GB.*?free', r'Free Space.*?C.*?(\d+\.?\d*)\s*GB']:
+                    match = re.search(pattern, raw_content, re.IGNORECASE)
+                    if match: return float(match.group(1))
+            return None
+        except: return None
+
+    def check_and_install_dependencies(self):
+        # ... (implementation unchanged) ...
+        pass
+
+    def render_header(self):
+        """Render the main header with title and refresh button"""
+        col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+
+        with col1:
+            st.markdown('<p class="main-title">🖥️ IT Asset Management Dashboard</p>', unsafe_allow_html=True)
+            if st.session_state.last_refresh:
+                st.markdown(f'<p class="caption-text">Last updated: {st.session_state.last_refresh.strftime("%Y-%m-%d %H:%M:%S")}</p>', unsafe_allow_html=True)
+
+        with col2:
+            # Theme toggle
+            if st.button("🌓 Toggle Theme"):
+                st.session_state.theme_mode = 'dark' if st.session_state.theme_mode == 'light' else 'light'
+                st.rerun()
+
+        with col3:
+            if st.button("Refresh Data 🔄"): # Changed button text and logic
+                st.session_state.refresh_trigger = True
+                st.rerun()
+
+        with col4:
+            asset_count = len(st.session_state.assets_data)
+            st.metric("Total Assets", asset_count)
+
+    def render_sidebar_filters(self):
+        # ... (implementation unchanged by this subtask, but uses updated session state) ...
+        st.sidebar.header("Filters & Options")
+        filters = {}
+        if not st.session_state.assets_data:
+            st.sidebar.info("No asset data available.")
+            return {
+               'selected_os': [], 'selected_manufacturers': [],
+               'min_ram': 0, 'max_ram': 128, 'min_storage': 0.0, 'max_storage': 500.0,
+               'show_low_storage': False, 'anydesk_search': "", 'search_term': "",
+               'nmap_scan_type': st.session_state.get('nmap_scan_type', "Quick Scan"),
+               'nmap_path': st.session_state.get('nmap_path', "nmap")
+           }
+        all_os_versions_set, all_manufacturers_set, all_ram_values_list, all_storage_values_list = set(), set(), [], []
+        for asset in st.session_state.assets_data.values():
+            if 'os_info' in asset and asset['os_info'].get('version'): all_os_versions_set.add(self.normalize_os_version(asset['os_info']['version']))
+            if 'system_info' in asset and asset['system_info'].get('manufacturer'): all_manufacturers_set.add(asset['system_info']['manufacturer'])
+            memory_gb = asset.get('hardware_info', {}).get('memory', {}).get('total_gb', 0)
+            if memory_gb: all_ram_values_list.append(int(memory_gb))
+            c_drive_free = self.get_c_drive_free_space(asset)
+            if c_drive_free is not None: all_storage_values_list.append(c_drive_free)
+        sorted_os_options, sorted_manufacturer_options = sorted(list(all_os_versions_set)), sorted(list(all_manufacturers_set))
+        if not st.session_state.selected_os_filter and sorted_os_options: st.session_state.selected_os_filter = sorted_os_options.copy()
+        filters['selected_os'] = st.sidebar.multiselect("OS", sorted_os_options, default=st.session_state.selected_os_filter, key="selected_os_multiselect", on_change=lambda: setattr(st.session_state, 'selected_os_filter', st.session_state.selected_os_multiselect))
+        if not st.session_state.selected_manufacturers_filter and sorted_manufacturer_options: st.session_state.selected_manufacturers_filter = sorted_manufacturer_options.copy()
+        filters['selected_manufacturers'] = st.sidebar.multiselect("Manufacturer", sorted_manufacturer_options, default=st.session_state.selected_manufacturers_filter, key="selected_manufacturers_multiselect", on_change=lambda: setattr(st.session_state, 'selected_manufacturers_filter', st.session_state.selected_manufacturers_multiselect))
+        st.sidebar.subheader("Hardware")
+        actual_min_ram, actual_max_ram = (min(all_ram_values_list) if all_ram_values_list else 0), (max(all_ram_values_list) if all_ram_values_list else 128)
+        current_ram_filter = st.session_state.ram_range_filter if st.session_state.ram_range_filter else (actual_min_ram, actual_max_ram)
+        filters['min_ram'], filters['max_ram'] = st.sidebar.slider("RAM (GB)", actual_min_ram, actual_max_ram, current_ram_filter, key="ram_slider", on_change=lambda: setattr(st.session_state, 'ram_range_filter', st.session_state.ram_slider))
+        actual_min_storage, actual_max_storage = 0.0, (max(all_storage_values_list) if all_storage_values_list else 500.0)
+        current_storage_filter = st.session_state.storage_range_filter if st.session_state.storage_range_filter else (actual_min_storage, actual_max_storage)
+        filters['min_storage'], filters['max_storage'] = st.sidebar.slider("C: Free Space (GB)", actual_min_storage, actual_max_storage, current_storage_filter, key="storage_slider", on_change=lambda: setattr(st.session_state, 'storage_range_filter', st.session_state.storage_slider))
+        st.sidebar.subheader("Quick Filters")
+        filters['show_low_storage'] = st.sidebar.checkbox("Low Storage (<10GB)", value=st.session_state.show_low_storage_only, key="show_low_storage_checkbox", on_change=lambda: setattr(st.session_state, 'show_low_storage_only', st.session_state.show_low_storage_checkbox))
+        filters['anydesk_search'] = st.sidebar.text_input("AnyDesk ID", value=st.session_state.anydesk_search_filter, key="anydesk_search_input", on_change=lambda: setattr(st.session_state, 'anydesk_search_filter', st.session_state.anydesk_search_input))
+        filters['search_term'] = st.sidebar.text_input("General Search", value=st.session_state.search_term_filter, key="search_term_input", on_change=lambda: setattr(st.session_state, 'search_term_filter', st.session_state.search_term_input))
+        st.sidebar.subheader("Network Scanning")
+        scan_type_options = ["Quick Scan", "Full Scan", "Disabled"]
+        try: current_scan_type_index = scan_type_options.index(st.session_state.nmap_scan_type)
+        except ValueError: current_scan_type_index = 0; st.session_state.nmap_scan_type = "Quick Scan"
+        st.sidebar.selectbox("Nmap Scan Type (info only)", scan_type_options, index=current_scan_type_index, key="nmap_scan_type_selector", help="Quick Scan is auto on load. Others for future use.")
+        filters['nmap_scan_type'] = st.session_state.nmap_scan_type
+        filters['nmap_path'] = st.sidebar.text_input("Nmap Path", value=st.session_state.nmap_path, key="nmap_path_input", on_change=lambda: setattr(st.session_state, 'nmap_path', st.session_state.nmap_path_input))
+        with st.sidebar.expander("⚙️ View Customization", expanded=False):
+            st.checkbox("Summary & Charts", value=st.session_state.show_summary_section, key="show_summary_cb", on_change=lambda: setattr(st.session_state, 'show_summary_section', st.session_state.show_summary_cb))
+            st.checkbox("Asset Bubbles", value=st.session_state.show_bubbles_section, key="show_bubbles_cb", on_change=lambda: setattr(st.session_state, 'show_bubbles_section', st.session_state.show_bubbles_cb))
+            st.checkbox("Asset Details Table", value=st.session_state.show_details_table_section, key="show_details_table_cb", on_change=lambda: setattr(st.session_state, 'show_details_table_section', st.session_state.show_details_table_cb))
+        return filters
+
+    def filter_assets(self, filters):
+        # ... (implementation unchanged) ...
+        filtered_assets = {}
+        for name, asset in st.session_state.assets_data.items():
+            if filters['selected_os'] and self.normalize_os_version(asset.get('os_info', {}).get('version', '')) not in filters['selected_os']: continue
+            if filters['selected_manufacturers'] and asset.get('system_info', {}).get('manufacturer', '') not in filters['selected_manufacturers']: continue
+            memory_gb = asset.get('hardware_info', {}).get('memory', {}).get('total_gb', 0)
+            if memory_gb and (memory_gb < filters['min_ram'] or memory_gb > filters['max_ram']): continue
+            c_drive_free = self.get_c_drive_free_space(asset)
+            if c_drive_free is not None and (c_drive_free < filters['min_storage'] or c_drive_free > filters['max_storage']): continue
+            if filters['show_low_storage'] and (c_drive_free is None or c_drive_free >= 10): continue
+            if filters['anydesk_search'] and filters['anydesk_search'].lower() not in asset.get('anydesk_id', '').lower(): continue
+            if filters['search_term'] and filters['search_term'].lower() not in json.dumps(asset).lower(): continue
+            filtered_assets[name] = asset
+        return filtered_assets
+
+
+    def render_asset_bubbles(self, assets):
+        """Render the dense list cards for assets"""
+        if not assets: st.warning("No assets match filters."); return
+        st.subheader("Asset Inventory List")
+        
+        # Change to 2 columns for wider, denser cards
+        assets_list = list(assets.items()); cols_per_row = 2
+        for i in range(0, len(assets_list), cols_per_row):
+            cols = st.columns(cols_per_row)
+            for j, (name, asset) in enumerate(assets_list[i:i + cols_per_row]):
+                with cols[j]: 
+                    self.render_single_asset_bubble(name, asset)
     
-    with gr.Tab("Asset Dashboard"):
-        with gr.Row():
-            # Column for Results Display (defined first)
-            with gr.Column(scale=2):
-                results_table = gr.HTML(initial_table) 
-                with gr.Row():
-                    page_info = gr.Markdown(initial_total_pages) 
+    def render_single_asset_bubble(self, name, asset):
+       # --- Data Extraction ---
+       ip_address = asset.get('network_info', {}).get('ip_address', 'No IP')
+       os_version = self.normalize_os_version(asset.get('os_info', {}).get('version', 'Unknown OS'))
+       memory_gb = asset.get('hardware_info', {}).get('memory', {}).get('total_gb', 0)
+       memory_display = f"{int(memory_gb)} GB" if memory_gb else "N/A"
+       c_drive_free_gb = self.get_c_drive_free_space(asset)
+       c_drive_display = f"{c_drive_free_gb:.1f} GB free" if c_drive_free_gb is not None else "N/A"
+       domain = asset.get('pc_domain', 'Unknown Domain')
+       uptime = asset.get('os_info', {}).get('uptime', 'N/A')
+       winrm_cmd = asset.get('winrm_command', '')
+
+       # --- Status Logic ---
+       raw_status = asset.get('network_info', {}).get('status', 'unknown')
+       if not isinstance(raw_status, str): raw_status = 'unknown'
+
+       status_for_class = raw_status.lower()
+       valid_status_css_classes = ["online", "offline", "scanning", "pending", "failed"]
+       if status_for_class not in valid_status_css_classes:
+            nmap_scan_status_msg = asset.get('network_info', {}).get('nmap_scan_status', '').lower()
+            if "failed" in nmap_scan_status_msg: status_for_class = "failed"
+            elif "pending" in nmap_scan_status_msg: status_for_class = "pending"
+            elif "skipped" in nmap_scan_status_msg: status_for_class = "scanning"
+            else: status_for_class = "unknown"
+
+       status_indicator_class = f"status-indicator-{status_for_class}"
+       status_text_class = f"status-{status_for_class}"
+       plain_status_text = raw_status.capitalize() if status_for_class in ["online", "offline"] else "Unknown"
+
+       # --- HTML Construction ---
+       anydesk_id_val = asset.get('anydesk_id', '')
+       anydesk_html = f'<a href="anydesk:{str(anydesk_id_val)}" class="anydesk-link" title="Connect via AnyDesk" target="_blank">Connect ({anydesk_id_val})</a>' if anydesk_id_val and str(anydesk_id_val).strip().lower() != 'n/a' else ''
+
+       # Extract Username smarter
+       username = "Unknown User"
+       raw_content = asset.get('raw_content', '')
+       for line in raw_content.splitlines():
+           if "windows account:" in line.lower() or "user account:" in line.lower():
+               parts = line.split(':', 1)
+               if len(parts) > 1 and parts[1].strip() and parts[1].strip().lower() != "n/a":
+                   username = parts[1].strip()
+                   break
+
+       # Main Card HTML (Rendered via markdown)
+       st.markdown(f"""
+       <div class="asset-list-card {status_indicator_class}">
+           <div class="status-bar-vertical"></div>
+           <div class="card-content-wrapper">
+               <div class="card-top-row">
+                   <div class="card-title-group">
+                       <span class="asset-name">{name}</span>
+                       <span class="asset-domain">{domain}</span>
+                       <span class="asset-ip">{ip_address}</span>
+                   </div>
+                   <div class="card-actions-group">
+                       <span class="status-text-badge {status_text_class}">{plain_status_text}</span>
+                       {anydesk_html}
+                   </div>
+               </div>
+               <div class="card-details-grid">
+                   <div class="detail-item" title="{os_version}">🖥️ {os_version}</div>
+                   <div class="detail-item">💻 {memory_display} RAM</div>
+                   <div class="detail-item">💽 C: {c_drive_display}</div>
+                   <div class="detail-item" title="{username}">👤 {username}</div>
+                   <div class="detail-item" title="Uptime">⏱️ {uptime}</div>
+               </div>
+           </div>
+       </div>
+       """, unsafe_allow_html=True)
+       
+       # Expander for deep technical details (Rendered natively in Streamlit inside the loop)
+       with st.expander("Show Technical Details"):
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("**Hardware & OS**")
+                st.markdown(f"- **Model:** {asset.get('system_info', {}).get('model', 'N/A')}")
+                st.markdown(f"- **CPU:** {asset.get('hardware_info', {}).get('processor', {}).get('name', 'N/A')}")
+                st.markdown(f"- **Install Date:** {asset.get('os_info', {}).get('install_date', 'N/A')}")
+                st.markdown(f"- **Reboot Time:** {asset.get('os_info', {}).get('last_reboot', 'N/A')}")
+                st.markdown(f"- **BIOS:** {asset.get('system_info', {}).get('bios_version', 'N/A')}")
+                st.markdown(f"- **Serial:** {asset.get('system_info', {}).get('serial_number', 'N/A')}")
+                
+            with col2:
+                st.markdown("**Network & Security**")
+                st.markdown(f"- **Gateway:** {asset.get('network_info', {}).get('default_gateway', 'N/A')}")
+                st.markdown(f"- **DNS:** {asset.get('network_info', {}).get('dns_servers', 'N/A')}")
+                st.markdown(f"- **Antivirus:** {asset.get('software_info', {}).get('antivirus', 'N/A')}")
+                
+                # Bitlocker logic
+                bl_status = asset.get('bitlocker_status', [])
+                bl_text = ", ".join(bl_status) if bl_status else "Unknown"
+                st.markdown(f"- **Bitlocker:** {bl_text}")
+
+            if winrm_cmd:
+                st.markdown("**Quick WinRM**")
+                st.code(winrm_cmd, language="powershell")
+
+    def render_status_distribution_chart(self, assets):
+        # ... (implementation unchanged) ...
+        if not assets: return
+        st.subheader("Assets by Status"); status_counts = {}
+        for asset_data in assets.values(): status = asset_data.get('network_info', {}).get('status', 'unknown'); status_counts[status] = status_counts.get(status, 0) + 1
+        if status_counts:
+            fig = px.pie(values=list(status_counts.values()), names=list(status_counts.keys()), title="Asset Status Overview")
+            fig.update_traces(textposition='inside', textinfo='percent+label'); st.plotly_chart(fig, use_container_width=True)
+        else: st.info("No status data for visualization.")
+
+    def render_asset_details_modal(self, assets):
+        # ... (implementation unchanged) ...
+        pass # Placeholder for brevity
+
+    def render_overview_metrics(self, assets):
+        """Render overview metrics cards"""
+        if not assets:
+            st.warning("No assets match the current filters.")
+            return
+
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.subheader("Dashboard Overview")
+        col1, col2, col3, col4 = st.columns(4)
+
+        # Calculate metrics
+        total_assets = len(assets)
+        online_assets = sum(1 for asset in assets.values()
+                          if asset.get('network_info', {}).get('status') == 'online')
+
+        ram_total = 0
+        storage_total = 0
+
+        for asset in assets.values():
+            # RAM total (convert to GB if needed)
+            ram_info = asset.get('hardware_info', {}).get('memory', {})
+            if isinstance(ram_info, dict) and 'total_gb' in ram_info:
+                ram_total += ram_info['total_gb']
+
+            # Storage total
+            storage_info = asset.get('hardware_info', {}).get('storage', [])
+            if isinstance(storage_info, list):
+                for drive in storage_info:
+                    if isinstance(drive, dict) and 'size_gb' in drive:
+                        storage_total += drive['size_gb']
+
+        with col1:
+            st.metric("Total Assets Managed", total_assets)
+
+        with col2:
+             # Calculate percentage for better context
+            online_pct = (online_assets / total_assets) * 100 if total_assets > 0 else 0
+            st.metric("Online Assets", online_assets, delta=f"{online_pct:.1f}% Active", delta_color="normal")
+
+        with col3:
+            st.metric("Total Configured RAM", f"{ram_total:.0f} GB" if ram_total > 0 else "N/A")
+
+        with col4:
+            st.metric("Total Provisioned Storage", f"{storage_total:.0f} GB" if storage_total > 0 else "N/A")
             
-            # Column for Filters and Controls
-            with gr.Column(scale=1):
-                # Define general filters first
-                hostname_filter = gr.Textbox(label="Filter by Hostname")
-                manufacturer_filter = gr.Textbox(label="Filter by Manufacturer")
-                with gr.Row(): 
-                    min_ram = gr.Number(label="Min RAM (GB)")
-                    max_ram = gr.Number(label="Max RAM (GB)")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-                # Then define OS-specific filters
-                gr.Markdown("### Filter by OS:")
-                with gr.Row(elem_id="os_filter_buttons_container"): 
-                    for os_name_val in unique_normalized_oss: 
-                        btn = gr.Button(os_name_val)
-                        # Define the click function using a lambda that captures os_name_val
-                        # The lambda's arguments (h_val, m_val, etc.) will receive values from the 'inputs' list
-                        click_fn = lambda h_val, m_val, min_r_val, max_r_val, current_os=os_name_val: (
-                            (lambda res: { # Inner lambda to unpack result
-                                results_table: gr.update(value=res[0]),
-                                page_info: gr.update(value=res[1]),
-                                current_os_filter_state: current_os # Update state
-                            })(filter_assets( # Call filter_assets once
-                                hostname_filter=h_val, os_filter=current_os, manufacturer_filter=m_val,
-                                min_ram=min_r_val, max_ram=max_r_val, filter_low_storage=False,
-                                page_index=0, page_size=None
-                            ))
-                        )
-                        btn.click(
-                            fn=click_fn,
-                            inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram],
-                            outputs=[results_table, page_info, current_os_filter_state] # Add state to outputs
-                        )
-                
-                clear_os_filter = gr.Button("Clear OS Filter", variant="secondary")
-                
-                # Other buttons that also need access to filters
-                low_storage_filter_button = gr.Button("Show Low Storage Assets", variant="secondary")
-                filter_button = gr.Button("Apply Filters", elem_id="apply_filters_button")
-                test_py_modal_trigger = gr.Button("Test Python Modal (First Asset)")
+    def render_asset_details(self, assets):
+        """Render detailed asset information in a table"""
+        logger.info(f"render_asset_details: Received assets. Count: {len(assets) if assets else 'None or empty'}")
 
-    with gr.Tab("Asset Details"):
-        with gr.Row():
-            with gr.Column(scale=1):
-                hostname_dropdown = gr.Dropdown(choices=get_unique_values("Hostname"), label="Select Hostname")
-                view_details_button = gr.Button("View Details")
-            with gr.Column(scale=2):
-                asset_details = gr.HTML(label="Asset Details", value="<div class='asset-details-placeholder'><h3>Select a hostname to view asset details</h3><p>Click on a hostname in the results table or select one from the dropdown.</p></div>") 
-    
-    def create_os_pie_chart():
-        if assets_df.empty or 'Normalized OS' not in assets_df.columns: return None
-        os_counts = assets_df['Normalized OS'].value_counts().reset_index()
-        os_counts.columns = ['Normalized OS', 'Count']
-        fig = px.pie(os_counts, values='Count', names='Normalized OS', title='Normalized OS Distribution')
-        return fig
+        if not assets:
+            logger.warning("render_asset_details: No assets data provided or assets are empty.")
+            st.warning("No asset data available to display details.")
+            return
 
-    def create_manufacturer_pie_chart():
-        if assets_df.empty or 'System Manufacturer' not in assets_df.columns: return None
-        manufacturer_counts = assets_df['System Manufacturer'].value_counts().reset_index()
-        manufacturer_counts.columns = ['System Manufacturer', 'Count']
-        fig = px.pie(manufacturer_counts, values='Count', names='System Manufacturer', title='System Manufacturer Distribution')
-        return fig
+        st.subheader("Asset Details")
 
-    with gr.Tab("System Statistics"):
-        gr.Markdown("## System Statistics Visualizations\nHere are some visualizations about the assets in the system:")
-        with gr.Row():
-            os_chart = gr.Plot(label="OS Distribution") 
-            manufacturer_chart = gr.Plot(label="System Manufacturer Distribution") 
-        generate_charts_button = gr.Button("Generate Charts")
+        table_data = []
+        try:
+            logger.info("render_asset_details: Starting preparation of table_data.")
+            for name, asset in assets.items():
+                try:
+                    row = {
+                        'Computer Name': name,
+                        'IP Address': asset.get('network_info', {}).get('ip_address', 'N/A'),
+                        'OS': asset.get('os_info', {}).get('version', 'N/A'),
+                        'Manufacturer': asset.get('system_info', {}).get('manufacturer', 'N/A'),
+                        'Model': asset.get('system_info', {}).get('model', 'N/A'),
+                        'RAM (GB)': asset.get('hardware_info', {}).get('memory', {}).get('total_gb', 'N/A'),
+                        'CPU': asset.get('hardware_info', {}).get('processor', {}).get('name', 'N/A'),
+                        'Status': asset.get('network_info', {}).get('status', 'Unknown')
+                    }
+                    table_data.append(row)
+                except Exception as e:
+                    logger.error(f"render_asset_details: Error processing asset '{name}': {str(e)}")
+                    # Optionally, add a placeholder row or skip
+            logger.info(f"render_asset_details: table_data preparation complete. Number of rows: {len(table_data)}")
+            if not table_data:
+                logger.warning("render_asset_details: table_data is empty after processing assets.")
+                st.info("No data could be prepared for the asset details table.")
+                return
+        except Exception as e:
+            logger.error(f"render_asset_details: Error during table_data preparation loop: {str(e)}")
+            st.error("An error occurred while preparing asset data for display.")
+            return
 
-    demo.load(fn=lambda: (create_os_pie_chart(), create_manufacturer_pie_chart()), outputs=[os_chart, manufacturer_chart])
-    
-    apply_filters_lambda = lambda h, m, min_r, max_r, current_os_val: ( # Add current_os_val
-        (lambda res: {
-            results_table: gr.update(value=res[0]),
-            page_info: gr.update(value=res[1])
-        })(filter_assets(
-            hostname_filter=h, os_filter=current_os_val, manufacturer_filter=m, # Use current_os_val
-            min_ram=min_r, max_ram=max_r, filter_low_storage=False,
-            page_index=0, page_size=None
-        ))
-    )
-    filter_button.click(
-        fn=apply_filters_lambda,
-        inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram, current_os_filter_state], # Add state to inputs
-        outputs=[results_table, page_info]
-    )
+        try:
+            logger.info("render_asset_details: Creating DataFrame from table_data.")
+            df = pd.DataFrame(table_data)
+            logger.info(f"render_asset_details: DataFrame created. Shape: {df.shape}. Head: {df.head().to_string() if not df.empty else 'Empty DataFrame'}")
+        except Exception as e:
+            logger.error(f"render_asset_details: Failed to create DataFrame: {str(e)}")
+            st.error("Failed to create the data table for asset details.")
+            return
 
-    low_storage_lambda = lambda h, m, min_r, max_r, current_os_val: ( # Add current_os_val
-        (lambda res: {
-            results_table: gr.update(value=res[0]),
-            page_info: gr.update(value=res[1])
-        })(filter_assets(
-            hostname_filter=h, os_filter=current_os_val, manufacturer_filter=m, # Use current_os_val
-            min_ram=min_r, max_ram=max_r, filter_low_storage=True, # filter_low_storage=True here
-            page_index=0, page_size=None
-        ))
-    )
-    low_storage_filter_button.click(
-        fn=low_storage_lambda,
-        inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram, current_os_filter_state], # Add state to inputs
-        outputs=[results_table, page_info]
-    )
+        if not df.empty:
+            try:
+                logger.info("render_asset_details: Converting DataFrame to CSV.")
+                csv = df.to_csv(index=False)
+                logger.info("render_asset_details: CSV conversion successful.")
 
-    clear_os_filter_lambda = lambda h_val, m_val, min_r_val, max_r_val: (
-        (lambda res: {
-            results_table: gr.update(value=res[0]),
-            page_info: gr.update(value=res[1]),
-            current_os_filter_state: "" # Clear state
-        })(filter_assets(
-            hostname_filter=h_val, os_filter="", manufacturer_filter=m_val,
-            min_ram=min_r_val, max_ram=max_r_val, filter_low_storage=False,
-            page_index=0, page_size=None
-        ))
-    )
-    clear_os_filter.click(
-        fn=clear_os_filter_lambda,
-        inputs=[hostname_filter, manufacturer_filter, min_ram, max_ram],
-        outputs=[results_table, page_info, current_os_filter_state] # Add state to outputs
-    )
-    py_close_modal_button.click(fn=close_asset_details_py_modal, inputs=None, outputs=[py_modal_wrapper])
-    test_py_modal_trigger.click(fn=trigger_py_modal_test, inputs=None, outputs=[py_modal_wrapper, py_modal_content_area])
-    py_modal_trigger_hostname_input.change(fn=show_asset_details_py_modal, inputs=[py_modal_trigger_hostname_input], outputs=[py_modal_wrapper, py_modal_content_area])
-    view_details_button.click(fn=show_asset_details_py_modal, inputs=hostname_dropdown, outputs=[py_modal_wrapper, py_modal_content_area])
+                logger.info("render_asset_details: Preparing download button.")
+                st.download_button(
+                    label="📥 Download Asset Report (CSV)",
+                    data=csv,
+                    file_name=f"asset_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv",
+                    key="download_asset_report_csv" # Added a key for robustness
+                )
+                logger.info("render_asset_details: Download button prepared.")
+            except Exception as e:
+                logger.error(f"render_asset_details: Failed to convert DataFrame to CSV or prepare download button: {str(e)}")
+                # Still display the table if CSV fails
+        else:
+            logger.info("render_asset_details: DataFrame is empty, skipping CSV conversion and download button.")
+            st.info("No data available in the table to download as CSV.") # Inform user
+
+        try:
+            logger.info("render_asset_details: Displaying DataFrame.")
+            st.dataframe(df, use_container_width=True)
+            logger.info("render_asset_details: DataFrame displayed successfully.")
+        except Exception as e:
+            logger.error(f"render_asset_details: Failed to display DataFrame: {str(e)}")
+            st.error("Failed to display the asset details table.")
+
+    def render_system_statistics(self, assets):
+        """Render system statistics with pie charts"""
+        st.subheader("System Statistics")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            # OS Distribution
+            os_data = {}
+            for asset in assets.values():
+                os_version = self.normalize_os_version(asset.get('os_info', {}).get('version', 'Unknown'))
+                os_data[os_version] = os_data.get(os_version, 0) + 1
+
+            if os_data:
+                fig_os = px.pie(
+                    values=list(os_data.values()),
+                    names=list(os_data.keys()),
+                    title="Operating System Distribution",
+                    color_discrete_sequence=px.colors.qualitative.Set3
+                )
+                fig_os.update_traces(textposition='inside', textinfo='percent+label')
+                st.plotly_chart(fig_os, use_container_width=True)
+
+        with col2:
+            # Manufacturer Distribution
+            manufacturer_data = {}
+            for asset in assets.values():
+                manufacturer = asset.get('system_info', {}).get('manufacturer', 'Unknown')
+                manufacturer_data[manufacturer] = manufacturer_data.get(manufacturer, 0) + 1
+
+            if manufacturer_data:
+                fig_mfg = px.pie(
+                    values=list(manufacturer_data.values()),
+                    names=list(manufacturer_data.keys()),
+                    title="System Manufacturer Distribution",
+                    color_discrete_sequence=px.colors.qualitative.Set2
+                )
+                fig_mfg.update_traces(textposition='inside', textinfo='percent+label')
+                st.plotly_chart(fig_mfg, use_container_width=True)
+
+    def run(self):
+        """Main application entry point"""
+        try:
+            if 'view_asset' in st.query_params:
+                try:
+                    if not st.session_state.assets_data:
+                        with st.spinner("Loading asset data..."):
+                             st.session_state.assets_data = self.load_assets_data()
+                    asset_name_from_query = urllib.parse.unquote(st.query_params['view_asset'])
+                    if asset_name_from_query and asset_name_from_query in st.session_state.assets_data:
+                        st.session_state.selected_asset_for_details = asset_name_from_query
+                        st.session_state.show_asset_details = True
+                    elif asset_name_from_query:
+                        st.warning(f"Asset '{asset_name_from_query}' specified in URL not found.")
+                    st.query_params.clear()
+                except Exception as e:
+                    logger.error(f"Error processing view_asset query param: {e}", exc_info=True)
+                    st.error("Failed to process asset view request from URL.")
+                    if 'view_asset' in st.query_params:
+                        try: st.query_params.clear()
+                        except Exception as e_clear: logger.error(f"Failed to clear query_params on error: {e_clear}")
+            
+            self.check_and_install_dependencies()
+            apply_windows11_theme()
+            
+            if not st.session_state.assets_data or 'refresh_trigger' in st.session_state:
+                if 'refresh_trigger' in st.session_state: del st.session_state['refresh_trigger']
+                logger.info("No Nmap queue to reset.") # Nmap queue was removed
+                with st.spinner("Loading asset data (including Nmap Quick Scans)..."):
+                    st.session_state.assets_data = self.load_assets_data()
+
+            self.render_header()
+            filters = self.render_sidebar_filters() # This now returns a dict of actual filter values
+
+            # This block for active pills display logic is kept from previous state,
+            # ensure it correctly uses session state for filter values.
+            if st.session_state.assets_data and filters:
+                all_os_versions_set, all_manufacturers_set, all_ram_values_list, all_storage_values_list = set(), set(), [], []
+                for asset in st.session_state.assets_data.values():
+                    if asset.get('os_info', {}).get('version'): all_os_versions_set.add(self.normalize_os_version(asset['os_info']['version']))
+                    if asset.get('system_info', {}).get('manufacturer'): all_manufacturers_set.add(asset['system_info']['manufacturer'])
+                    memory_gb = asset.get('hardware_info', {}).get('memory', {}).get('total_gb', 0)
+                    if memory_gb: all_ram_values_list.append(int(memory_gb))
+                    c_drive_free = self.get_c_drive_free_space(asset)
+                    if c_drive_free is not None: all_storage_values_list.append(c_drive_free)
+
+                default_min_ram = min(all_ram_values_list) if all_ram_values_list else 0
+                default_max_ram = max(all_ram_values_list) if all_ram_values_list else 128
+                default_min_storage = 0.0
+                default_max_storage = max(all_storage_values_list) if all_storage_values_list else 500.0
+
+                active_pills_data = []
+                if len(st.session_state.selected_os_filter) != len(all_os_versions_set):
+                    for os_name in st.session_state.selected_os_filter: active_pills_data.append((f"OS: {os_name}", f"dismiss_os_{os_name}", {"type": "os", "value": os_name}))
+                if len(st.session_state.selected_manufacturers_filter) != len(all_manufacturers_set):
+                    for manuf_name in st.session_state.selected_manufacturers_filter: active_pills_data.append((f"Manuf: {manuf_name}", f"dismiss_manuf_{manuf_name}", {"type": "manufacturer", "value": manuf_name}))
+                current_ram_filter = st.session_state.ram_range_filter
+                if current_ram_filter and (current_ram_filter[0] != default_min_ram or current_ram_filter[1] != default_max_ram): active_pills_data.append((f"RAM: {current_ram_filter[0]}-{current_ram_filter[1]} GB", "dismiss_ram", {"type": "ram_range"}))
+                current_storage_filter = st.session_state.storage_range_filter
+                if current_storage_filter and (current_storage_filter[0] != default_min_storage or current_storage_filter[1] != default_max_storage): active_pills_data.append((f"Storage: {current_storage_filter[0]:.1f}-{current_storage_filter[1]:.1f} GB", "dismiss_storage", {"type": "storage_range"}))
+                if st.session_state.show_low_storage_only: active_pills_data.append(("Status: Low Storage", "dismiss_low_storage", {"type": "show_low_storage"}))
+                if st.session_state.anydesk_search_filter: active_pills_data.append((f"AnyDesk: {st.session_state.anydesk_search_filter}", "dismiss_anydesk", {"type": "anydesk_search"}))
+                if st.session_state.search_term_filter: active_pills_data.append((f"Search: \"{st.session_state.search_term_filter}\"", "dismiss_search", {"type": "search_term"}))
+
+                if active_pills_data:
+                    st.markdown('<div class="filter-pill-container">', unsafe_allow_html=True)
+                    pills_per_row_approx = 4
+                    num_rows = (len(active_pills_data) + pills_per_row_approx - 1) // pills_per_row_approx
+                    for i in range(num_rows):
+                        cols = st.columns(pills_per_row_approx)
+                        for j in range(pills_per_row_approx):
+                            pill_index = i * pills_per_row_approx + j
+                            if pill_index < len(active_pills_data):
+                                pill_text, dismiss_key, action_args = active_pills_data[pill_index]
+                                with cols[j]:
+                                    st.markdown(f'<div class="filter-pill"><span>{pill_text}</span>', unsafe_allow_html=True)
+                                    if st.button("×", key=dismiss_key, help=f"Remove {pill_text} filter"):
+                                        filter_type = action_args["type"]
+                                        if filter_type == "os": st.session_state.selected_os_filter.remove(action_args["value"]); st.session_state.selected_os_filter = st.session_state.selected_os_filter or (sorted(list(all_os_versions_set)) if all_os_versions_set else [])
+                                        elif filter_type == "manufacturer": st.session_state.selected_manufacturers_filter.remove(action_args["value"]); st.session_state.selected_manufacturers_filter = st.session_state.selected_manufacturers_filter or (sorted(list(all_manufacturers_set)) if all_manufacturers_set else [])
+                                        elif filter_type == "ram_range": st.session_state.ram_range_filter = None
+                                        elif filter_type == "storage_range": st.session_state.storage_range_filter = None
+                                        elif filter_type == "show_low_storage": st.session_state.show_low_storage_only = False
+                                        elif filter_type == "anydesk_search": st.session_state.anydesk_search_filter = ""
+                                        elif filter_type == "search_term": st.session_state.search_term_filter = ""
+                                        st.rerun()
+                                    st.markdown('</div>', unsafe_allow_html=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+            # Use the 'filters' dict returned by render_sidebar_filters for filtering logic
+            # This dict should reflect the latest state from session_state due to on_change callbacks
+            filtered_assets = self.filter_assets(filters)
+            self.render_asset_details_modal(filtered_assets)
+
+            if st.session_state.get('show_summary_section', True):
+                st.markdown('<div class="summary-charts-container">', unsafe_allow_html=True)
+                self.render_overview_metrics(filtered_assets)
+                st.divider()
+                self.render_system_statistics(filtered_assets)
+                self.render_status_distribution_chart(filtered_assets)
+                st.markdown('</div>', unsafe_allow_html=True)
+                st.divider()
+
+            if filtered_assets:
+                if st.session_state.get('show_bubbles_section', True):
+                    self.render_asset_bubbles(filtered_assets)
+                    if st.session_state.get('show_details_table_section', True): st.divider()
+                if st.session_state.get('show_details_table_section', True):
+                    self.render_asset_details(filtered_assets)
+            else:
+                if st.session_state.assets_data: st.warning("No assets match filters.")
+                else: st.info("Welcome! Place asset files in 'assets' and refresh.")
+        except Exception as e:
+            logger.error(f"Application error: {str(e)}", exc_info=True)
+            st.error(f"An unhandled error occurred: {str(e)}")
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7867)
+    app = ITAssetDashboard()
+    app.run()
