@@ -383,8 +383,13 @@
                     </ListBox.ItemsPanel>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Border Style="{StaticResource AssetTileBorderStyle}"
-                                    Width="{Binding ActualWidth, ElementName=AssetTileList, Converter={StaticResource TileWidthConverter}}">
+                            <Border Style="{StaticResource AssetTileBorderStyle}">
+                                <Border.Width>
+                                    <MultiBinding Converter="{StaticResource TileWidthConverter}">
+                                        <Binding ElementName="AssetTileList" Path="ActualWidth" />
+                                        <Binding RelativeSource="{RelativeSource AncestorType=Window}" Path="DataContext.FilteredCount" />
+                                    </MultiBinding>
+                                </Border.Width>
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
@@ -616,25 +621,29 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="32" />
                                     <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0" Style="{StaticResource FieldLabelStyle}" Text="AnyDesk" />
                                 <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedAsset.AnyDeskId}" Foreground="{StaticResource AccentBrush}" />
                                 <Button Grid.Row="0" Grid.Column="2" Content="Connect" Style="{StaticResource PrimaryButtonStyle}" Command="{Binding ConnectSelectedAnyDeskCommand}" />
                                 <TextBox Grid.Row="1"
-                                         Grid.ColumnSpan="2"
+                                         Grid.ColumnSpan="3"
                                          Text="{Binding SelectedAsset.WinRmCommand}"
                                          IsReadOnly="True"
                                          TextWrapping="Wrap"
-                                         Margin="0,8,0,6" />
-                                <Button Grid.Row="1"
-                                        Grid.Column="2"
-                                        Content="Copy"
+                                         VerticalContentAlignment="Top"
+                                         Padding="12,10"
+                                         MinHeight="86"
+                                         Margin="0,8,0,0" />
+                                <Button Grid.Row="2"
+                                        Grid.ColumnSpan="3"
+                                        Content="Copy WinRM Command"
                                         Style="{StaticResource CompactButtonStyle}"
                                         Command="{Binding CopyTextCommand}"
                                         CommandParameter="{Binding SelectedAsset.WinRmCommand}"
-                                        Margin="8,8,0,6"
+                                        Margin="0,8,0,0"
                                         HorizontalAlignment="Right"
-                                        VerticalAlignment="Stretch" />
+                                        MinWidth="150" />
                             </Grid>
 
                             <TextBlock Text="Hardware" Style="{StaticResource SectionTextStyle}" />
