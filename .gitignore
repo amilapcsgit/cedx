@@ -1,0 +1,8 @@
+bin/
+obj/
+Database/
+.vs/
+*.user
+*.suo
+*.nupkg
+TestResults/
