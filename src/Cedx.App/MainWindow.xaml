@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:common="clr-namespace:Cedx.App.Common"
         mc:Ignorable="d"
         Title="CEDX Asset Manager"
         Width="1460"
@@ -11,6 +12,8 @@
         MinHeight="720"
         Background="{StaticResource WindowBackgroundBrush}">
     <Window.Resources>
+        <common:TileWidthConverter x:Key="TileWidthConverter" />
+
         <Style x:Key="MutedTextStyle" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
             <Setter Property="FontSize" Value="13" />
@@ -42,11 +45,11 @@
         </Style>
 
         <Style x:Key="AssetTileBorderStyle" TargetType="{x:Type Border}">
-            <Setter Property="Width" Value="390" />
-            <Setter Property="MinHeight" Value="198" />
-            <Setter Property="Margin" Value="0,0,16,16" />
-            <Setter Property="Padding" Value="16" />
-            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="MinWidth" Value="300" />
+            <Setter Property="MinHeight" Value="226" />
+            <Setter Property="Margin" Value="0,0,14,14" />
+            <Setter Property="Padding" Value="15" />
+            <Setter Property="CornerRadius" Value="20" />
             <Setter Property="Background" Value="{StaticResource TileGlassBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
@@ -177,9 +180,9 @@
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="250" />
+                <ColumnDefinition Width="236" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="420" />
+                <ColumnDefinition Width="380" />
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0"
@@ -264,12 +267,30 @@
                                    VerticalAlignment="Center"
                                    FontSize="16"
                                    FontWeight="SemiBold" />
-                        <TextBox x:Name="SearchBox"
-                                 Grid.Column="1"
-                                 MinHeight="38"
-                                 FontSize="18"
-                                 FontWeight="SemiBold"
-                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+                        <Grid Grid.Column="1">
+                            <TextBox x:Name="SearchBox"
+                                     MinHeight="38"
+                                     FontSize="18"
+                                     FontWeight="SemiBold"
+                                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Text="Search user, PC name, AnyDesk ID or IP"
+                                       VerticalAlignment="Center"
+                                       Margin="12,0,0,0"
+                                       Foreground="{StaticResource SubtleTextBrush}"
+                                       IsHitTestVisible="False">
+                                <TextBlock.Style>
+                                    <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SearchText}" Value="">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
                         <Button Grid.Column="2"
                                 Margin="8,0,0,0"
                                 Content="Clear"
@@ -347,12 +368,14 @@
                     </Grid>
                 </Border>
 
-                <ListBox Grid.Row="2"
+                <ListBox x:Name="AssetTileList"
+                         Grid.Row="2"
                          ItemsSource="{Binding AssetsView}"
                          SelectedItem="{Binding SelectedAsset, Mode=TwoWay}"
                          Style="{StaticResource TileListBoxStyle}"
                          ItemContainerStyle="{StaticResource TileListBoxItemStyle}"
-                         Padding="16">
+                         ScrollViewer.CanContentScroll="False"
+                         Padding="14">
                     <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel IsItemsHost="True" />
@@ -360,7 +383,8 @@
                     </ListBox.ItemsPanel>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Border Style="{StaticResource AssetTileBorderStyle}">
+                            <Border Style="{StaticResource AssetTileBorderStyle}"
+                                    Width="{Binding ActualWidth, ElementName=AssetTileList, Converter={StaticResource TileWidthConverter}}">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
@@ -382,9 +406,20 @@
                                                TextTrimming="CharacterEllipsis" />
                                     <TextBlock Grid.Row="0"
                                                Grid.Column="1"
-                                               Text="{Binding OnlineStatus}"
-                                               Style="{StaticResource MutedTextStyle}"
-                                               Margin="12,2,0,0" />
+                                               Text="{Binding RemoteAccessStatus}"
+                                               Margin="12,2,0,0">
+                                        <TextBlock.Style>
+                                            <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource MutedTextStyle}">
+                                                <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasAnyDesk}" Value="False">
+                                                        <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
 
                                     <TextBlock Grid.Row="1"
                                                Grid.ColumnSpan="2"
@@ -429,25 +464,39 @@
                                         </StackPanel>
                                     </Grid>
 
-                                    <StackPanel Grid.Row="4"
-                                                Grid.ColumnSpan="2"
-                                                Orientation="Horizontal"
-                                                Margin="0,14,0,0">
+                                    <Grid Grid.Row="4"
+                                          Grid.ColumnSpan="2"
+                                          Margin="0,14,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
                                         <Button Content="{Binding AnyDeskActionText}"
+                                                Grid.Row="0"
+                                                Grid.ColumnSpan="2"
                                                 Style="{StaticResource PrimaryButtonStyle}"
                                                 Command="{Binding DataContext.LaunchAnyDeskCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                 CommandParameter="{Binding AnyDeskId}"
-                                                Margin="0,0,8,0" />
+                                                HorizontalAlignment="Stretch"
+                                                Margin="0,0,0,8" />
                                         <Button Content="Copy User"
+                                                Grid.Row="1"
+                                                Grid.Column="0"
                                                 Style="{StaticResource CompactButtonStyle}"
                                                 Command="{Binding DataContext.CopyTextCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                 CommandParameter="{Binding WindowsAccount}"
                                                 Margin="0,0,8,0" />
                                         <Button Content="Copy IP"
+                                                Grid.Row="1"
+                                                Grid.Column="1"
                                                 Style="{StaticResource CompactButtonStyle}"
                                                 Command="{Binding DataContext.CopyTextCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                 CommandParameter="{Binding IpAddress}" />
-                                    </StackPanel>
+                                    </Grid>
                                 </Grid>
                             </Border>
                         </DataTemplate>

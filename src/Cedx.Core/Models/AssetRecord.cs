@@ -45,6 +45,7 @@ public sealed class AssetRecord
     public string CDriveFreeDisplay => CDriveFreeGb is double value ? value.ToString("0.#", CultureInfo.InvariantCulture) + " GB" : string.Empty;
     public string AnyDeskDisplay => string.IsNullOrWhiteSpace(AnyDeskId) ? string.Empty : AnyDeskId;
     public string AnyDeskActionText => HasAnyDesk ? $"Connect {AnyDeskId}" : "No AnyDesk";
+    public string RemoteAccessStatus => HasAnyDesk ? "Ready" : "No ID";
     public string LastRebootOrUptime => string.IsNullOrWhiteSpace(Os.LastRebootTime) ? Os.SystemUptime : $"{Os.LastRebootTime} / {Os.SystemUptime}".Trim(' ', '/');
     public string WindowsUserDisplay
     {
