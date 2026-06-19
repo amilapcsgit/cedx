@@ -5,11 +5,83 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="CEDX Asset Manager"
-        Width="1420"
-        Height="860"
-        MinWidth="1120"
-        MinHeight="680"
+        Width="1460"
+        Height="900"
+        MinWidth="1180"
+        MinHeight="720"
         Background="{StaticResource WindowBackgroundBrush}">
+    <Window.Resources>
+        <Style x:Key="MutedTextStyle" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+        </Style>
+
+        <Style x:Key="SectionTextStyle" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+
+        <Style x:Key="FieldLabelStyle" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="CompactButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinHeight" Value="26" />
+            <Setter Property="Padding" Value="8,3" />
+        </Style>
+
+        <Style x:Key="PrimaryButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{StaticResource SelectedBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="Padding" Value="12,5" />
+        </Style>
+
+        <Style x:Key="AssetTileBorderStyle" TargetType="{x:Type Border}">
+            <Setter Property="Width" Value="360" />
+            <Setter Property="MinHeight" Value="172" />
+            <Setter Property="Margin" Value="0,0,12,12" />
+            <Setter Property="Padding" Value="14" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                    <Setter Property="Background" Value="{StaticResource HoverBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                    <Setter Property="Background" Value="{StaticResource SelectedBrush}" />
+                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="TileListBoxStyle" TargetType="{x:Type ListBox}">
+            <Setter Property="Background" Value="{StaticResource WindowBackgroundBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+        </Style>
+
+        <Style x:Key="TileListBoxItemStyle" TargetType="{x:Type ListBoxItem}">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                        <ContentPresenter />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
     <Window.CommandBindings>
         <CommandBinding Command="ApplicationCommands.Find" Executed="FindCommand_Executed" />
     </Window.CommandBindings>
@@ -17,6 +89,7 @@
         <KeyBinding Key="F5" Command="{Binding RefreshCommand}" />
         <KeyBinding Key="F" Modifiers="Control" Command="ApplicationCommands.Find" />
         <KeyBinding Key="E" Modifiers="Control" Command="{Binding ExportCsvCommand}" />
+        <KeyBinding Key="Enter" Modifiers="Control" Command="{Binding ConnectSelectedAnyDeskCommand}" />
     </Window.InputBindings>
 
     <Grid>
@@ -81,13 +154,6 @@
                                    FontWeight="SemiBold"
                                    Margin="0,0,0,12" />
 
-                        <TextBlock Text="Search"
-                                   Foreground="{StaticResource MutedTextBrush}"
-                                   Margin="0,0,0,4" />
-                        <TextBox x:Name="SearchBox"
-                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,0,12" />
-
                         <TextBlock Text="OS"
                                    Foreground="{StaticResource MutedTextBrush}"
                                    Margin="0,0,0,4" />
@@ -132,28 +198,249 @@
                 </ScrollViewer>
             </Border>
 
-            <DataGrid Grid.Column="1"
-                      ItemsSource="{Binding AssetsView}"
-                      SelectedItem="{Binding SelectedAsset, Mode=TwoWay}"
-                      AutoGenerateColumns="False"
-                      IsReadOnly="True"
-                      SelectionMode="Single"
-                      SelectionUnit="FullRow"
-                      FrozenColumnCount="2">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Status" Binding="{Binding OnlineStatus}" Width="78" />
-                    <DataGridTextColumn Header="Hostname" Binding="{Binding Hostname}" Width="160" />
-                    <DataGridTextColumn Header="IP Address" Binding="{Binding IpAddress}" Width="118" />
-                    <DataGridTextColumn Header="User" Binding="{Binding WindowsAccount}" Width="180" />
-                    <DataGridTextColumn Header="OS" Binding="{Binding OsVersion}" Width="230" />
-                    <DataGridTextColumn Header="Manufacturer" Binding="{Binding Manufacturer}" Width="120" />
-                    <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="160" />
-                    <DataGridTextColumn Header="RAM" Binding="{Binding RamDisplay}" Width="78" />
-                    <DataGridTextColumn Header="C: Free" Binding="{Binding CDriveFreeDisplay}" Width="88" />
-                    <DataGridTextColumn Header="AnyDesk" Binding="{Binding AnyDeskDisplay}" Width="112" />
-                    <DataGridTextColumn Header="Last Reboot / Uptime" Binding="{Binding LastRebootOrUptime}" Width="220" />
-                </DataGrid.Columns>
-            </DataGrid>
+            <Grid Grid.Column="1"
+                  Background="{StaticResource WindowBackgroundBrush}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="70" />
+                    <RowDefinition Height="118" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0"
+                        Background="{StaticResource WindowBackgroundBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        Padding="16,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="92" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="Lookup"
+                                   VerticalAlignment="Center"
+                                   FontSize="16"
+                                   FontWeight="SemiBold" />
+                        <TextBox x:Name="SearchBox"
+                                 Grid.Column="1"
+                                 MinHeight="38"
+                                 FontSize="16"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+                        <Button Grid.Column="2"
+                                Margin="8,0,0,0"
+                                Content="Clear"
+                                Command="{Binding ClearSearchCommand}" />
+                        <TextBlock Grid.Column="3"
+                                   VerticalAlignment="Center"
+                                   Margin="16,0,0,0"
+                                   Foreground="{StaticResource MutedTextBrush}"
+                                   Text="{Binding FilteredCount, StringFormat={}{0} shown}" />
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1"
+                        Background="{StaticResource PanelBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        Padding="16,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0"
+                                   Text="{Binding SelectedAsset.Hostname}"
+                                   FontSize="22"
+                                   FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis" />
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,6,0,0">
+                            <TextBlock Text="{Binding SelectedAsset.WindowsUserDisplay}"
+                                       FontSize="15"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,14,0"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding SelectedAsset.WindowsAccount}"
+                                       Style="{StaticResource MutedTextStyle}"
+                                       Margin="0,0,14,0"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding SelectedAsset.OsShortDisplay}"
+                                       Style="{StaticResource MutedTextStyle}"
+                                       Margin="0,0,14,0"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding SelectedAsset.IpAddress}"
+                                       Style="{StaticResource MutedTextStyle}"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <TextBlock Grid.Row="2"
+                                   Text="{Binding SelectedAsset.AnyDeskDisplay, StringFormat=AnyDesk: {0}}"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   Margin="0,8,0,0"
+                                   TextTrimming="CharacterEllipsis" />
+
+                        <StackPanel Grid.Column="1"
+                                    Grid.RowSpan="3"
+                                    Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                            <Button Content="Connect AnyDesk"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Command="{Binding ConnectSelectedAnyDeskCommand}"
+                                    Margin="0,0,8,0" />
+                            <Button Content="Copy ID"
+                                    Command="{Binding CopyTextCommand}"
+                                    CommandParameter="{Binding SelectedAsset.AnyDeskId}"
+                                    Margin="0,0,8,0" />
+                            <Button Content="Copy User"
+                                    Command="{Binding CopyTextCommand}"
+                                    CommandParameter="{Binding SelectedAsset.WindowsAccount}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <ListBox Grid.Row="2"
+                         ItemsSource="{Binding AssetsView}"
+                         SelectedItem="{Binding SelectedAsset, Mode=TwoWay}"
+                         Style="{StaticResource TileListBoxStyle}"
+                         ItemContainerStyle="{StaticResource TileListBoxItemStyle}"
+                         Padding="16">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel IsItemsHost="True" />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource AssetTileBorderStyle}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Row="0"
+                                               Grid.Column="0"
+                                               Text="{Binding Hostname}"
+                                               FontSize="20"
+                                               FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Row="0"
+                                               Grid.Column="1"
+                                               Text="{Binding OnlineStatus}"
+                                               Style="{StaticResource MutedTextStyle}"
+                                               Margin="12,2,0,0" />
+
+                                    <TextBlock Grid.Row="1"
+                                               Grid.ColumnSpan="2"
+                                               Text="{Binding WindowsUserDisplay}"
+                                               FontSize="16"
+                                               FontWeight="SemiBold"
+                                               Margin="0,8,0,0"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Row="2"
+                                               Grid.ColumnSpan="2"
+                                               Text="{Binding WindowsAccount}"
+                                               Style="{StaticResource MutedTextStyle}"
+                                               Margin="0,2,0,0"
+                                               TextTrimming="CharacterEllipsis" />
+
+                                    <Grid Grid.Row="3"
+                                          Grid.ColumnSpan="2"
+                                          Margin="0,12,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="{Binding OsShortDisplay}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding IpAddress}"
+                                                       Style="{StaticResource MutedTextStyle}"
+                                                       Margin="0,3,0,0"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="{Binding AnyDeskDisplay, StringFormat=AnyDesk {0}}"
+                                                       Foreground="{StaticResource AccentBrush}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding CDriveFreeDisplay, StringFormat=C: {0}}"
+                                                       Style="{StaticResource MutedTextStyle}"
+                                                       Margin="0,3,0,0"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <StackPanel Grid.Row="4"
+                                                Grid.ColumnSpan="2"
+                                                Orientation="Horizontal"
+                                                Margin="0,14,0,0">
+                                        <Button Content="{Binding AnyDeskActionText}"
+                                                Style="{StaticResource PrimaryButtonStyle}"
+                                                Command="{Binding DataContext.LaunchAnyDeskCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding AnyDeskId}"
+                                                Margin="0,0,8,0" />
+                                        <Button Content="Copy User"
+                                                Style="{StaticResource CompactButtonStyle}"
+                                                Command="{Binding DataContext.CopyTextCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding WindowsAccount}"
+                                                Margin="0,0,8,0" />
+                                        <Button Content="Copy IP"
+                                                Style="{StaticResource CompactButtonStyle}"
+                                                Command="{Binding DataContext.CopyTextCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding IpAddress}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <Expander Grid.Row="3"
+                          Header="Inventory Table"
+                          Background="{StaticResource PanelBrush}"
+                          BorderBrush="{StaticResource BorderBrush}"
+                          BorderThickness="0,1,0,0"
+                          Foreground="{StaticResource TextBrush}"
+                          Padding="12,4"
+                          IsExpanded="False">
+                    <DataGrid ItemsSource="{Binding AssetsView}"
+                              SelectedItem="{Binding SelectedAsset, Mode=TwoWay}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              SelectionMode="Single"
+                              SelectionUnit="FullRow"
+                              MaxHeight="260">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Status" Binding="{Binding OnlineStatus}" Width="78" />
+                            <DataGridTextColumn Header="Hostname" Binding="{Binding Hostname}" Width="160" />
+                            <DataGridTextColumn Header="IP Address" Binding="{Binding IpAddress}" Width="118" />
+                            <DataGridTextColumn Header="User" Binding="{Binding WindowsAccount}" Width="180" />
+                            <DataGridTextColumn Header="OS" Binding="{Binding OsVersion}" Width="230" />
+                            <DataGridTextColumn Header="Manufacturer" Binding="{Binding Manufacturer}" Width="120" />
+                            <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="160" />
+                            <DataGridTextColumn Header="RAM" Binding="{Binding RamDisplay}" Width="78" />
+                            <DataGridTextColumn Header="C: Free" Binding="{Binding CDriveFreeDisplay}" Width="88" />
+                            <DataGridTextColumn Header="AnyDesk" Binding="{Binding AnyDeskDisplay}" Width="112" />
+                            <DataGridTextColumn Header="Last Reboot / Uptime" Binding="{Binding LastRebootOrUptime}" Width="220" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Expander>
+            </Grid>
 
             <Border Grid.Column="2"
                     Background="{StaticResource PanelBrush}"
@@ -197,7 +484,7 @@
                                        Foreground="{StaticResource MutedTextBrush}"
                                        Margin="0,0,0,16" />
 
-                            <TextBlock Text="Identity" FontWeight="SemiBold" Margin="0,0,0,8" />
+                            <TextBlock Text="Identity" Style="{StaticResource SectionTextStyle}" />
                             <Grid Margin="0,0,0,14">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="112" />
@@ -209,21 +496,54 @@
                                     <RowDefinition Height="28" />
                                     <RowDefinition Height="28" />
                                     <RowDefinition Height="28" />
+                                    <RowDefinition Height="28" />
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Foreground="{StaticResource MutedTextBrush}" Text="Hostname" />
-                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedAsset.Hostname}" />
-                                <Button Grid.Row="0" Grid.Column="2" Content="Copy" Command="{Binding CopyTextCommand}" CommandParameter="{Binding SelectedAsset.Hostname}" />
-                                <TextBlock Grid.Row="1" Foreground="{StaticResource MutedTextBrush}" Text="IP" />
-                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedAsset.IpAddress}" />
-                                <Button Grid.Row="1" Grid.Column="2" Content="Copy" Command="{Binding CopyTextCommand}" CommandParameter="{Binding SelectedAsset.IpAddress}" />
-                                <TextBlock Grid.Row="2" Foreground="{StaticResource MutedTextBrush}" Text="User" />
-                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedAsset.WindowsAccount}" />
-                                <Button Grid.Row="2" Grid.Column="2" Content="Copy" Command="{Binding CopyTextCommand}" CommandParameter="{Binding SelectedAsset.WindowsAccount}" />
-                                <TextBlock Grid.Row="3" Foreground="{StaticResource MutedTextBrush}" Text="Domain" />
-                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedAsset.PcDomain}" />
+                                <TextBlock Grid.Row="0" Style="{StaticResource FieldLabelStyle}" Text="Hostname" />
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedAsset.Hostname}" TextTrimming="CharacterEllipsis" />
+                                <Button Grid.Row="0" Grid.Column="2" Content="Copy" Style="{StaticResource CompactButtonStyle}" Command="{Binding CopyTextCommand}" CommandParameter="{Binding SelectedAsset.Hostname}" />
+                                <TextBlock Grid.Row="1" Style="{StaticResource FieldLabelStyle}" Text="User" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedAsset.WindowsUserDisplay}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Row="2" Style="{StaticResource FieldLabelStyle}" Text="Account" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedAsset.WindowsAccount}" TextTrimming="CharacterEllipsis" />
+                                <Button Grid.Row="2" Grid.Column="2" Content="Copy" Style="{StaticResource CompactButtonStyle}" Command="{Binding CopyTextCommand}" CommandParameter="{Binding SelectedAsset.WindowsAccount}" />
+                                <TextBlock Grid.Row="3" Style="{StaticResource FieldLabelStyle}" Text="IP" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedAsset.IpAddress}" />
+                                <Button Grid.Row="3" Grid.Column="2" Content="Copy" Style="{StaticResource CompactButtonStyle}" Command="{Binding CopyTextCommand}" CommandParameter="{Binding SelectedAsset.IpAddress}" />
+                                <TextBlock Grid.Row="4" Style="{StaticResource FieldLabelStyle}" Text="Domain" />
+                                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedAsset.PcDomain}" TextTrimming="CharacterEllipsis" />
                             </Grid>
 
-                            <TextBlock Text="Hardware" FontWeight="SemiBold" Margin="0,0,0,8" />
+                            <TextBlock Text="Remote Access" Style="{StaticResource SectionTextStyle}" />
+                            <Grid Margin="0,0,0,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="112" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="32" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Style="{StaticResource FieldLabelStyle}" Text="AnyDesk" />
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedAsset.AnyDeskId}" Foreground="{StaticResource AccentBrush}" />
+                                <Button Grid.Row="0" Grid.Column="2" Content="Connect" Style="{StaticResource PrimaryButtonStyle}" Command="{Binding ConnectSelectedAnyDeskCommand}" />
+                                <TextBox Grid.Row="1"
+                                         Grid.ColumnSpan="3"
+                                         Text="{Binding SelectedAsset.WinRmCommand}"
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         Margin="0,8,0,6" />
+                                <Button Grid.Row="1"
+                                        Grid.Column="2"
+                                        Content="Copy"
+                                        Style="{StaticResource CompactButtonStyle}"
+                                        Command="{Binding CopyTextCommand}"
+                                        CommandParameter="{Binding SelectedAsset.WinRmCommand}"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Bottom" />
+                            </Grid>
+
+                            <TextBlock Text="Hardware" Style="{StaticResource SectionTextStyle}" />
                             <Grid Margin="0,0,0,14">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="112" />
@@ -236,19 +556,19 @@
                                     <RowDefinition Height="28" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Foreground="{StaticResource MutedTextBrush}" Text="Maker" />
-                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedAsset.Manufacturer}" />
-                                <TextBlock Grid.Row="1" Foreground="{StaticResource MutedTextBrush}" Text="Model" />
-                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedAsset.Model}" />
-                                <TextBlock Grid.Row="2" Foreground="{StaticResource MutedTextBrush}" Text="Serial" />
-                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedAsset.SerialNumber}" />
-                                <TextBlock Grid.Row="3" Foreground="{StaticResource MutedTextBrush}" Text="RAM" />
+                                <TextBlock Grid.Row="0" Style="{StaticResource FieldLabelStyle}" Text="Maker" />
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedAsset.Manufacturer}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Row="1" Style="{StaticResource FieldLabelStyle}" Text="Model" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedAsset.Model}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Row="2" Style="{StaticResource FieldLabelStyle}" Text="Serial" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedAsset.SerialNumber}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Row="3" Style="{StaticResource FieldLabelStyle}" Text="RAM" />
                                 <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedAsset.RamDisplay}" />
-                                <TextBlock Grid.Row="4" Foreground="{StaticResource MutedTextBrush}" Text="CPU" />
+                                <TextBlock Grid.Row="4" Style="{StaticResource FieldLabelStyle}" Text="CPU" />
                                 <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedAsset.Cpu}" TextWrapping="Wrap" />
                             </Grid>
 
-                            <TextBlock Text="OS" FontWeight="SemiBold" Margin="0,0,0,8" />
+                            <TextBlock Text="OS" Style="{StaticResource SectionTextStyle}" />
                             <Grid Margin="0,0,0,14">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="112" />
@@ -260,17 +580,17 @@
                                     <RowDefinition Height="28" />
                                     <RowDefinition Height="28" />
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Foreground="{StaticResource MutedTextBrush}" Text="Version" />
+                                <TextBlock Grid.Row="0" Style="{StaticResource FieldLabelStyle}" Text="Version" />
                                 <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedAsset.Os.Version}" TextWrapping="Wrap" />
-                                <TextBlock Grid.Row="1" Foreground="{StaticResource MutedTextBrush}" Text="Install" />
+                                <TextBlock Grid.Row="1" Style="{StaticResource FieldLabelStyle}" Text="Install" />
                                 <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedAsset.Os.InstallDate}" />
-                                <TextBlock Grid.Row="2" Foreground="{StaticResource MutedTextBrush}" Text="Reboot" />
+                                <TextBlock Grid.Row="2" Style="{StaticResource FieldLabelStyle}" Text="Reboot" />
                                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedAsset.Os.LastRebootTime}" />
-                                <TextBlock Grid.Row="3" Foreground="{StaticResource MutedTextBrush}" Text="Uptime" />
+                                <TextBlock Grid.Row="3" Style="{StaticResource FieldLabelStyle}" Text="Uptime" />
                                 <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedAsset.Os.SystemUptime}" />
                             </Grid>
 
-                            <TextBlock Text="Network" FontWeight="SemiBold" Margin="0,0,0,8" />
+                            <TextBlock Text="Network" Style="{StaticResource SectionTextStyle}" />
                             <Grid Margin="0,0,0,14">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="112" />
@@ -280,37 +600,20 @@
                                     <RowDefinition Height="28" />
                                     <RowDefinition Height="28" />
                                     <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="28" />
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Foreground="{StaticResource MutedTextBrush}" Text="Mode" />
+                                <TextBlock Grid.Row="0" Style="{StaticResource FieldLabelStyle}" Text="Mode" />
                                 <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedAsset.Network.NetworkMode}" />
-                                <TextBlock Grid.Row="1" Foreground="{StaticResource MutedTextBrush}" Text="Gateway" />
+                                <TextBlock Grid.Row="1" Style="{StaticResource FieldLabelStyle}" Text="Gateway" />
                                 <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedAsset.Network.DefaultGateway}" />
-                                <TextBlock Grid.Row="2" Foreground="{StaticResource MutedTextBrush}" Text="DNS" />
+                                <TextBlock Grid.Row="2" Style="{StaticResource FieldLabelStyle}" Text="DNS" />
                                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedAsset.Network.DnsServers}" TextWrapping="Wrap" />
-                                <TextBlock Grid.Row="3" Foreground="{StaticResource MutedTextBrush}" Text="AnyDesk" />
-                                <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal">
-                                    <TextBlock Text="{Binding SelectedAsset.AnyDeskId}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                    <Button Content="Copy" Command="{Binding CopyTextCommand}" CommandParameter="{Binding SelectedAsset.AnyDeskId}" Margin="0,0,6,0" />
-                                    <Button Content="Launch" Command="{Binding LaunchAnyDeskCommand}" CommandParameter="{Binding SelectedAsset.AnyDeskId}" />
-                                </StackPanel>
                             </Grid>
 
-                            <TextBlock Text="Security" FontWeight="SemiBold" Margin="0,0,0,8" />
+                            <TextBlock Text="Security" Style="{StaticResource SectionTextStyle}" />
                             <TextBlock Text="{Binding SelectedAsset.Antivirus, StringFormat=Antivirus: {0}}" TextWrapping="Wrap" Margin="0,0,0,4" />
                             <TextBlock Text="{Binding SelectedAsset.Os.Activation, StringFormat=OS Activation: {0}}" TextWrapping="Wrap" Margin="0,0,0,4" />
                             <TextBlock Text="{Binding SelectedAsset.StoredCredentials.Count, StringFormat=Stored credentials: {0}}" Margin="0,0,0,4" />
                             <TextBlock Text="{Binding SelectedAsset.ParseWarnings.Count, StringFormat=Parse warnings: {0}}" Margin="0,0,0,14" />
-
-                            <TextBlock Text="Remote Access" FontWeight="SemiBold" Margin="0,0,0,8" />
-                            <TextBox Text="{Binding SelectedAsset.WinRmCommand}"
-                                     IsReadOnly="True"
-                                     TextWrapping="Wrap"
-                                     Margin="0,0,0,6" />
-                            <Button Content="Copy WinRM Command"
-                                    HorizontalAlignment="Left"
-                                    Command="{Binding CopyTextCommand}"
-                                    CommandParameter="{Binding SelectedAsset.WinRmCommand}" />
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>

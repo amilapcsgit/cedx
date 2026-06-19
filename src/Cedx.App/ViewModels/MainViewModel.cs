@@ -67,6 +67,8 @@ public sealed class MainViewModel : ObservableObject
         OpenAssetsFolderCommand = new RelayCommand(_ => OpenAssetsFolder());
         CopyTextCommand = new RelayCommand(parameter => CopyText(parameter as string));
         LaunchAnyDeskCommand = new RelayCommand(parameter => LaunchAnyDesk(parameter as string), parameter => CanLaunchAnyDesk(parameter as string));
+        ConnectSelectedAnyDeskCommand = new RelayCommand(_ => LaunchAnyDesk(SelectedAsset?.AnyDeskId), _ => CanLaunchAnyDesk(SelectedAsset?.AnyDeskId));
+        ClearSearchCommand = new RelayCommand(_ => SearchText = string.Empty, _ => !string.IsNullOrWhiteSpace(SearchText));
     }
 
     public ObservableCollection<AssetRecord> Assets { get; } = [];
@@ -80,11 +82,19 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand OpenAssetsFolderCommand { get; }
     public RelayCommand CopyTextCommand { get; }
     public RelayCommand LaunchAnyDeskCommand { get; }
+    public RelayCommand ConnectSelectedAnyDeskCommand { get; }
+    public RelayCommand ClearSearchCommand { get; }
 
     public AssetRecord? SelectedAsset
     {
         get => _selectedAsset;
-        set => SetProperty(ref _selectedAsset, value);
+        set
+        {
+            if (SetProperty(ref _selectedAsset, value))
+            {
+                ConnectSelectedAnyDeskCommand.RaiseCanExecuteChanged();
+            }
+        }
     }
 
     public string SearchText
@@ -95,6 +105,7 @@ public sealed class MainViewModel : ObservableObject
             if (SetProperty(ref _searchText, value))
             {
                 ApplyFilters();
+                ClearSearchCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -342,8 +353,10 @@ public sealed class MainViewModel : ObservableObject
                Contains(asset.IpAddress, query) ||
                Contains(asset.PcDomain, query) ||
                Contains(asset.WindowsAccount, query) ||
+               Contains(asset.WindowsUserDisplay, query) ||
                Contains(asset.AnyDeskId, query) ||
                Contains(asset.OsVersion, query) ||
+               Contains(asset.System.UserEmails, query) ||
                Contains(asset.Manufacturer, query) ||
                Contains(asset.Model, query) ||
                Contains(asset.SerialNumber, query) ||
@@ -352,6 +365,8 @@ public sealed class MainViewModel : ObservableObject
                Contains(asset.Antivirus, query) ||
                Contains(asset.OfficeVersion, query) ||
                Contains(asset.Software.AdobeAutodesk, query) ||
+               Contains(asset.Software.LocalUsers, query) ||
+               Contains(asset.SourceFileName, query) ||
                asset.Software.InstalledPrinters.Any(printer => Contains(printer.Name, query));
     }
 
@@ -364,6 +379,19 @@ public sealed class MainViewModel : ObservableObject
     {
         AssetsView.Refresh();
         UpdateCounts();
+        EnsureVisibleSelection();
+    }
+
+    private void EnsureVisibleSelection()
+    {
+        var visibleAssets = AssetsView.Cast<AssetRecord>().ToArray();
+        if (SelectedAsset is not null && visibleAssets.Contains(SelectedAsset))
+        {
+            ConnectSelectedAnyDeskCommand.RaiseCanExecuteChanged();
+            return;
+        }
+
+        SelectedAsset = visibleAssets.FirstOrDefault();
     }
 
     private void UpdateCounts()

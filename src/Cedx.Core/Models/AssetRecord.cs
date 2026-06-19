@@ -44,7 +44,57 @@ public sealed class AssetRecord
     public string RamDisplay => RamGb is double value ? value.ToString("0.#", CultureInfo.InvariantCulture) + " GB" : string.Empty;
     public string CDriveFreeDisplay => CDriveFreeGb is double value ? value.ToString("0.#", CultureInfo.InvariantCulture) + " GB" : string.Empty;
     public string AnyDeskDisplay => string.IsNullOrWhiteSpace(AnyDeskId) ? string.Empty : AnyDeskId;
+    public string AnyDeskActionText => HasAnyDesk ? $"Connect {AnyDeskId}" : "No AnyDesk";
     public string LastRebootOrUptime => string.IsNullOrWhiteSpace(Os.LastRebootTime) ? Os.SystemUptime : $"{Os.LastRebootTime} / {Os.SystemUptime}".Trim(' ', '/');
+    public string WindowsUserDisplay
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(WindowsAccount))
+            {
+                return string.Empty;
+            }
+
+            var separatorIndex = WindowsAccount.LastIndexOf('\\');
+            return separatorIndex >= 0 && separatorIndex < WindowsAccount.Length - 1
+                ? WindowsAccount[(separatorIndex + 1)..]
+                : WindowsAccount;
+        }
+    }
+
+    public string OsShortDisplay
+    {
+        get
+        {
+            if (OsVersion.Contains("Windows 11", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Windows 11";
+            }
+
+            if (OsVersion.Contains("Windows 10", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Windows 10";
+            }
+
+            if (OsVersion.Contains("Windows 8", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Windows 8";
+            }
+
+            if (OsVersion.Contains("Windows 7", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Windows 7";
+            }
+
+            if (OsVersion.Contains("Windows Server", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Windows Server";
+            }
+
+            return OsVersion;
+        }
+    }
+
     public bool HasAnyDesk => !string.IsNullOrWhiteSpace(AnyDeskId) && !AnyDeskId.Equals("N/A", StringComparison.OrdinalIgnoreCase) && !AnyDeskId.Equals("Not Found", StringComparison.OrdinalIgnoreCase);
     public bool HasStoredCredentials => StoredCredentials.Count > 0;
     public bool HasBitLockerOff => BitLockerStatus.Any(v => v.Protection.IndexOf("Off", StringComparison.OrdinalIgnoreCase) >= 0 || v.Raw.IndexOf("Protection: Off", StringComparison.OrdinalIgnoreCase) >= 0);

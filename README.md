@@ -28,8 +28,11 @@ The smoke check loads local asset `.txt` files and reports parsed RAM, C: free s
 
 The first WPF slice includes:
 
-- dense inventory table,
-- global search,
+- tile-first caller lookup,
+- one-click AnyDesk connection from each PC tile,
+- selected asset quick-connect strip,
+- dense inventory table as a collapsible audit view,
+- global search across PC, user, IP, AnyDesk, OS, hardware, software, and printer fields,
 - OS/manufacturer/status filters,
 - low storage, AnyDesk, BitLocker Off, and stored credential filters,
 - selected asset details panel,
