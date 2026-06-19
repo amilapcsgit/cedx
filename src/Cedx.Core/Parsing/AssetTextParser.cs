@@ -71,7 +71,8 @@ public sealed partial class AssetTextParser : IAssetParser
             Antivirus = GetColonBlockText(lines, "Antivirus:"),
             AdobeAutodesk = GetColonBlockText(lines, "Adobe/Autodesk:"),
             LocalUsers = GetColonBlockText(lines, "Local User Accounts:"),
-            InstalledPrinters = ParsePrinters(GetColonBlockText(lines, "Installed Printers:"))
+            InstalledPrinters = ParsePrinters(GetColonBlockText(lines, "Installed Printers:")),
+            InstalledPrograms = ParseInstalledPrograms(lines)
         };
 
         record.Os.Activation = GetColonBlockText(lines, "OS Activation:");
@@ -236,6 +237,47 @@ public sealed partial class AssetTextParser : IAssetParser
         return printerText.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
             .Select(name => new PrinterEntry { Name = name })
             .ToArray();
+    }
+
+    private static IReadOnlyList<string> ParseInstalledPrograms(IReadOnlyList<string> lines)
+    {
+        var block = GetColonBlock(lines, "Installed Programs:");
+        if (block.Count == 0)
+        {
+            block = GetColonBlock(lines, "Installed Program:");
+        }
+
+        if (block.Count == 0)
+        {
+            block = GetColonBlock(lines, "Software:");
+        }
+
+        if (block.Count == 0)
+        {
+            block = GetColonBlock(lines, "Applications:");
+        }
+
+        if (block.Count == 0)
+        {
+            block = GetEqualsBlock(lines, "=== Installed Programs ===");
+        }
+
+        return block.SelectMany(SplitSoftwareLine)
+            .Select(CleanValue)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Where(value => !value.Equals("None", StringComparison.OrdinalIgnoreCase))
+            .Where(value => !value.Equals("None Found", StringComparison.OrdinalIgnoreCase))
+            .Where(value => !value.StartsWith("No installed", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static IEnumerable<string> SplitSoftwareLine(string line)
+    {
+        return CleanValue(line)
+            .TrimStart('-', '*', ' ')
+            .Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
     }
 
     private static IReadOnlyList<BitLockerVolume> ParseBitLocker(IEnumerable<string> lines, ICollection<string> warnings)

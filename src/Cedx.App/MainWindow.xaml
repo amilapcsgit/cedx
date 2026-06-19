@@ -44,6 +44,15 @@
             <Setter Property="FontWeight" Value="Bold" />
         </Style>
 
+        <Style x:Key="MetricPanelStyle" TargetType="{x:Type Border}">
+            <Setter Property="Margin" Value="0,0,10,0" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Background" Value="{StaticResource TileGlassBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
         <Style x:Key="AssetTileBorderStyle" TargetType="{x:Type Border}">
             <Setter Property="MinWidth" Value="280" />
             <Setter Property="MinHeight" Value="222" />
@@ -62,6 +71,9 @@
                 <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
                     <Setter Property="Background" Value="{StaticResource TileSelectedBrush}" />
                     <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HasLowStorage}" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource WarningBrush}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -151,6 +163,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
@@ -169,9 +182,13 @@
                         Content="Open Assets Folder"
                         Command="{Binding OpenAssetsFolderCommand}" />
                 <Button Grid.Column="3"
+                        Margin="0,0,8,0"
                         Content="Export CSV"
                         Command="{Binding ExportCsvCommand}" />
-                <TextBlock Grid.Column="5"
+                <Button Grid.Column="4"
+                        Content="Scan Status"
+                        Command="{Binding ScanNetworkCommand}" />
+                <TextBlock Grid.Column="6"
                            VerticalAlignment="Center"
                            Foreground="{StaticResource MutedTextBrush}"
                            Text="{Binding LastRefreshText, StringFormat=Last refresh: {0}}" />
@@ -217,11 +234,43 @@
                                   SelectedItem="{Binding SelectedStatusFilter}"
                                   Margin="0,0,0,12" />
 
+                        <TextBlock Text="AnyDesk ID"
+                                   Foreground="{StaticResource MutedTextBrush}"
+                                   Margin="0,0,0,4" />
+                        <TextBox Text="{Binding AnyDeskFilter, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,0,12" />
+
                         <TextBlock Text="Low Storage Threshold GB"
                                    Foreground="{StaticResource MutedTextBrush}"
                                    Margin="0,0,0,4" />
                         <TextBox Text="{Binding LowStorageThresholdGb, UpdateSourceTrigger=LostFocus}"
                                  Margin="0,0,0,12" />
+
+                        <TextBlock Text="RAM Range GB"
+                                   Foreground="{StaticResource MutedTextBrush}"
+                                   Margin="0,0,0,4" />
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding MinRamFilterGb, UpdateSourceTrigger=LostFocus}" />
+                            <TextBox Grid.Column="2" Text="{Binding MaxRamFilterGb, UpdateSourceTrigger=LostFocus}" />
+                        </Grid>
+
+                        <TextBlock Text="C: Free Range GB"
+                                   Foreground="{StaticResource MutedTextBrush}"
+                                   Margin="0,0,0,4" />
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding MinStorageFilterGb, UpdateSourceTrigger=LostFocus}" />
+                            <TextBox Grid.Column="2" Text="{Binding MaxStorageFilterGb, UpdateSourceTrigger=LostFocus}" />
+                        </Grid>
 
                         <CheckBox Content="Low storage only"
                                   IsChecked="{Binding LowStorageOnly}" />
@@ -231,6 +280,26 @@
                                   IsChecked="{Binding HasBitLockerOffOnly}" />
                         <CheckBox Content="Has stored credentials"
                                   IsChecked="{Binding HasStoredCredentialsOnly}" />
+
+                        <Button Content="Reset Filters"
+                                Command="{Binding ResetFiltersCommand}"
+                                Margin="0,14,0,0" />
+
+                        <TextBlock Text="Network Scanning"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Margin="0,24,0,12" />
+                        <TextBlock Text="Nmap Scan Type"
+                                   Foreground="{StaticResource MutedTextBrush}"
+                                   Margin="0,0,0,4" />
+                        <ComboBox ItemsSource="{Binding ScanTypeOptions}"
+                                  SelectedItem="{Binding SelectedNmapScanType}"
+                                  Margin="0,0,0,12" />
+                        <TextBlock Text="Nmap Path"
+                                   Foreground="{StaticResource MutedTextBrush}"
+                                   Margin="0,0,0,4" />
+                        <TextBox Text="{Binding NmapPath, UpdateSourceTrigger=LostFocus}"
+                                 Margin="0,0,0,12" />
 
                         <TextBlock Text="Asset Folder"
                                    Foreground="{StaticResource MutedTextBrush}"
@@ -245,6 +314,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="70" />
                     <RowDefinition Height="118" />
+                    <RowDefinition Height="92" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
@@ -368,8 +438,51 @@
                     </Grid>
                 </Border>
 
+                <Border Grid.Row="2"
+                        Background="{StaticResource LiquidGlassBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        Padding="14,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Style="{StaticResource MetricPanelStyle}">
+                            <StackPanel>
+                                <TextBlock Text="AnyDesk Ready" Foreground="{StaticResource MutedTextBrush}" />
+                                <TextBlock Text="{Binding AnyDeskReadyCount, StringFormat={}{0} PCs}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" />
+                                <TextBlock Text="{Binding StatusDistributionText}" Foreground="{StaticResource SubtleTextBrush}" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="1" Style="{StaticResource MetricPanelStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Low Storage" Foreground="{StaticResource MutedTextBrush}" />
+                                <TextBlock Text="{Binding LowStorageCount, StringFormat={}{0} alerts}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource WarningBrush}" />
+                                <TextBlock Text="{Binding StorageHealthText}" Foreground="{StaticResource SubtleTextBrush}" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Style="{StaticResource MetricPanelStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Hardware Totals" Foreground="{StaticResource MutedTextBrush}" />
+                                <TextBlock Text="{Binding TotalRamDisplay}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource AccentBlueBrush}" />
+                                <TextBlock Text="{Binding TotalStorageDisplay, StringFormat=Storage {0}}" Foreground="{StaticResource SubtleTextBrush}" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="3" Style="{StaticResource MetricPanelStyle}" Margin="0">
+                            <StackPanel>
+                                <TextBlock Text="Distributions" Foreground="{StaticResource MutedTextBrush}" />
+                                <TextBlock Text="{Binding OsDistributionText}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding ManufacturerDistributionText}" Foreground="{StaticResource SubtleTextBrush}" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+
                 <ListBox x:Name="AssetTileList"
-                         Grid.Row="2"
+                         Grid.Row="3"
                          ItemsSource="{Binding AssetsView}"
                          SelectedItem="{Binding SelectedAsset, Mode=TwoWay}"
                          Style="{StaticResource TileListBoxStyle}"
@@ -462,10 +575,20 @@
                                                        Foreground="{StaticResource AccentPinkBrush}"
                                                        FontWeight="SemiBold"
                                                        TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Text="{Binding CDriveFreeDisplay, StringFormat=C: {0}}"
-                                                       Style="{StaticResource MutedTextStyle}"
+                                            <TextBlock Text="{Binding CDriveTileDisplay, StringFormat=C: {0}}"
                                                        Margin="0,3,0,0"
-                                                       TextTrimming="CharacterEllipsis" />
+                                                       TextTrimming="CharacterEllipsis">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource MutedTextStyle}">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding HasLowStorage}" Value="True">
+                                                                <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                                                                <Setter Property="FontWeight" Value="Bold" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
                                         </StackPanel>
                                     </Grid>
 
@@ -508,7 +631,7 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <Expander Grid.Row="3"
+                <Expander Grid.Row="4"
                           Header="Inventory Table"
                           Background="{StaticResource LiquidGlassBrush}"
                           BorderBrush="{StaticResource BorderBrush}"
@@ -658,6 +781,9 @@
                                     <RowDefinition Height="28" />
                                     <RowDefinition Height="28" />
                                     <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0" Style="{StaticResource FieldLabelStyle}" Text="Maker" />
                                 <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedAsset.Manufacturer}" TextTrimming="CharacterEllipsis" />
@@ -669,6 +795,12 @@
                                 <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedAsset.RamDisplay}" />
                                 <TextBlock Grid.Row="4" Style="{StaticResource FieldLabelStyle}" Text="CPU" />
                                 <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedAsset.Cpu}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="5" Style="{StaticResource FieldLabelStyle}" Text="GPU" Margin="0,5,0,0" />
+                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedAsset.Gpu}" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                <TextBlock Grid.Row="6" Style="{StaticResource FieldLabelStyle}" Text="Monitor" Margin="0,5,0,0" />
+                                <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding SelectedAsset.Hardware.MonitorModel}" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                <TextBlock Grid.Row="7" Style="{StaticResource FieldLabelStyle}" Text="Disks" Margin="0,5,0,0" />
+                                <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding SelectedAsset.LocalDiskSummary}" TextWrapping="Wrap" Margin="0,5,0,0" />
                             </Grid>
 
                             <TextBlock Text="OS" Style="{StaticResource SectionTextStyle}" />
@@ -682,6 +814,8 @@
                                     <RowDefinition Height="28" />
                                     <RowDefinition Height="28" />
                                     <RowDefinition Height="28" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="28" />
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0" Style="{StaticResource FieldLabelStyle}" Text="Version" />
                                 <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedAsset.Os.Version}" TextWrapping="Wrap" />
@@ -691,6 +825,10 @@
                                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedAsset.Os.LastRebootTime}" />
                                 <TextBlock Grid.Row="3" Style="{StaticResource FieldLabelStyle}" Text="Uptime" />
                                 <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedAsset.Os.SystemUptime}" />
+                                <TextBlock Grid.Row="4" Style="{StaticResource FieldLabelStyle}" Text="Activation" Margin="0,5,0,0" />
+                                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedAsset.Os.Activation}" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                <TextBlock Grid.Row="5" Style="{StaticResource FieldLabelStyle}" Text="Language" />
+                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedAsset.Os.Language}" />
                             </Grid>
 
                             <TextBlock Text="Network" Style="{StaticResource SectionTextStyle}" />
@@ -714,9 +852,19 @@
 
                             <TextBlock Text="Security" Style="{StaticResource SectionTextStyle}" />
                             <TextBlock Text="{Binding SelectedAsset.Antivirus, StringFormat=Antivirus: {0}}" TextWrapping="Wrap" Margin="0,0,0,4" />
-                            <TextBlock Text="{Binding SelectedAsset.Os.Activation, StringFormat=OS Activation: {0}}" TextWrapping="Wrap" Margin="0,0,0,4" />
-                            <TextBlock Text="{Binding SelectedAsset.StoredCredentials.Count, StringFormat=Stored credentials: {0}}" Margin="0,0,0,4" />
+                            <TextBlock Text="{Binding SelectedAsset.BitLockerSummary, StringFormat=BitLocker: {0}}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                            <TextBlock Text="{Binding SelectedAsset.CredentialSummary, StringFormat=Stored credentials: {0}}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                            <TextBlock Text="{Binding SelectedAsset.SmbCredentialSummary, StringFormat=SMB credentials: {0}}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                            <TextBlock Text="{Binding SelectedAsset.SharedFolderSummary, StringFormat=Shared folders: {0}}" TextWrapping="Wrap" Margin="0,0,0,4" />
                             <TextBlock Text="{Binding SelectedAsset.ParseWarnings.Count, StringFormat=Parse warnings: {0}}" Margin="0,0,0,14" />
+
+                            <TextBlock Text="Software" Style="{StaticResource SectionTextStyle}" />
+                            <TextBlock Text="{Binding SelectedAsset.OfficeVersion, StringFormat=Office: {0}}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                            <TextBlock Text="{Binding SelectedAsset.Software.OfficeActivation, StringFormat=Office activation: {0}}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                            <TextBlock Text="{Binding SelectedAsset.Software.AdobeAutodesk, StringFormat=Adobe/Autodesk: {0}}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                            <TextBlock Text="{Binding SelectedAsset.PrinterSummary, StringFormat=Printers: {0}}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                            <TextBlock Text="{Binding SelectedAsset.InstalledProgramCountDisplay, StringFormat=Installed programs: {0}}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                            <TextBlock Text="{Binding SelectedAsset.InstalledProgramPreview}" TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,14" />
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>

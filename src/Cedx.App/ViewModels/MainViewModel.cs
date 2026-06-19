@@ -28,15 +28,34 @@ public sealed class MainViewModel : ObservableObject
     private bool _hasBitLockerOffOnly;
     private bool _hasStoredCredentialsOnly;
     private double _lowStorageThresholdGb = 10d;
+    private double _minRamFilterGb;
+    private double _maxRamFilterGb = 512d;
+    private double _minStorageFilterGb;
+    private double _maxStorageFilterGb = 5000d;
+    private string _anyDeskFilter = string.Empty;
     private bool _isBusy;
+    private bool _isNetworkScanBusy;
     private string _assetsFolderPath;
+    private string _nmapPath = "nmap";
+    private string _selectedNmapScanType = "Quick Scan";
     private string _lastRefreshText = "Not loaded";
     private string _statusMessage = "Ready";
     private int _loadedCount;
     private int _filteredCount;
     private int _onlineCount;
     private int _offlineCount;
+    private int _unknownCount;
     private int _errorsCount;
+    private int _lowStorageCount;
+    private int _anyDeskReadyCount;
+    private int _bitLockerOffCount;
+    private int _storedCredentialAssetCount;
+    private string _totalRamDisplay = "0 GB";
+    private string _totalStorageDisplay = "0 GB";
+    private string _osDistributionText = "OS: no data";
+    private string _manufacturerDistributionText = "Makers: no data";
+    private string _statusDistributionText = "Status: no data";
+    private string _storageHealthText = "Storage: no data";
 
     private const string AllFilter = "All";
 
@@ -61,14 +80,18 @@ public sealed class MainViewModel : ObservableObject
         {
             StatusOptions.Add(value);
         }
+        ScanTypeOptions.Add("Quick Scan");
+        ScanTypeOptions.Add("Full Scan");
 
         RefreshCommand = new AsyncRelayCommand(_ => RefreshAsync());
+        ScanNetworkCommand = new AsyncRelayCommand(_ => ScanNetworkStatusAsync(), _ => Assets.Count > 0 && !IsBusy && !IsNetworkScanBusy);
         ExportCsvCommand = new RelayCommand(_ => ExportFilteredCsv(), _ => Assets.Count > 0);
         OpenAssetsFolderCommand = new RelayCommand(_ => OpenAssetsFolder());
         CopyTextCommand = new RelayCommand(parameter => CopyText(parameter as string));
         LaunchAnyDeskCommand = new RelayCommand(parameter => LaunchAnyDesk(parameter as string), parameter => CanLaunchAnyDesk(parameter as string));
         ConnectSelectedAnyDeskCommand = new RelayCommand(_ => LaunchAnyDesk(SelectedAsset?.AnyDeskId), _ => CanLaunchAnyDesk(SelectedAsset?.AnyDeskId));
         ClearSearchCommand = new RelayCommand(_ => SearchText = string.Empty, _ => !string.IsNullOrWhiteSpace(SearchText));
+        ResetFiltersCommand = new RelayCommand(_ => ResetFilters());
     }
 
     public ObservableCollection<AssetRecord> Assets { get; } = [];
@@ -76,14 +99,17 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<string> OsOptions { get; } = [];
     public ObservableCollection<string> ManufacturerOptions { get; } = [];
     public ObservableCollection<string> StatusOptions { get; } = [];
+    public ObservableCollection<string> ScanTypeOptions { get; } = [];
 
     public AsyncRelayCommand RefreshCommand { get; }
+    public AsyncRelayCommand ScanNetworkCommand { get; }
     public RelayCommand ExportCsvCommand { get; }
     public RelayCommand OpenAssetsFolderCommand { get; }
     public RelayCommand CopyTextCommand { get; }
     public RelayCommand LaunchAnyDeskCommand { get; }
     public RelayCommand ConnectSelectedAnyDeskCommand { get; }
     public RelayCommand ClearSearchCommand { get; }
+    public RelayCommand ResetFiltersCommand { get; }
 
     public AssetRecord? SelectedAsset
     {
@@ -206,16 +232,106 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    public double MinRamFilterGb
+    {
+        get => _minRamFilterGb;
+        set
+        {
+            if (SetProperty(ref _minRamFilterGb, Math.Max(0d, value)))
+            {
+                ApplyFilters();
+            }
+        }
+    }
+
+    public double MaxRamFilterGb
+    {
+        get => _maxRamFilterGb;
+        set
+        {
+            if (SetProperty(ref _maxRamFilterGb, Math.Max(0d, value)))
+            {
+                ApplyFilters();
+            }
+        }
+    }
+
+    public double MinStorageFilterGb
+    {
+        get => _minStorageFilterGb;
+        set
+        {
+            if (SetProperty(ref _minStorageFilterGb, Math.Max(0d, value)))
+            {
+                ApplyFilters();
+            }
+        }
+    }
+
+    public double MaxStorageFilterGb
+    {
+        get => _maxStorageFilterGb;
+        set
+        {
+            if (SetProperty(ref _maxStorageFilterGb, Math.Max(0d, value)))
+            {
+                ApplyFilters();
+            }
+        }
+    }
+
+    public string AnyDeskFilter
+    {
+        get => _anyDeskFilter;
+        set
+        {
+            if (SetProperty(ref _anyDeskFilter, value))
+            {
+                ApplyFilters();
+            }
+        }
+    }
+
     public bool IsBusy
     {
         get => _isBusy;
-        private set => SetProperty(ref _isBusy, value);
+        private set
+        {
+            if (SetProperty(ref _isBusy, value))
+            {
+                ScanNetworkCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool IsNetworkScanBusy
+    {
+        get => _isNetworkScanBusy;
+        private set
+        {
+            if (SetProperty(ref _isNetworkScanBusy, value))
+            {
+                ScanNetworkCommand.RaiseCanExecuteChanged();
+            }
+        }
     }
 
     public string AssetsFolderPath
     {
         get => _assetsFolderPath;
         set => SetProperty(ref _assetsFolderPath, value);
+    }
+
+    public string NmapPath
+    {
+        get => _nmapPath;
+        set => SetProperty(ref _nmapPath, string.IsNullOrWhiteSpace(value) ? "nmap" : value);
+    }
+
+    public string SelectedNmapScanType
+    {
+        get => _selectedNmapScanType;
+        set => SetProperty(ref _selectedNmapScanType, string.IsNullOrWhiteSpace(value) ? "Quick Scan" : value);
     }
 
     public string LastRefreshText
@@ -254,10 +370,76 @@ public sealed class MainViewModel : ObservableObject
         private set => SetProperty(ref _offlineCount, value);
     }
 
+    public int UnknownCount
+    {
+        get => _unknownCount;
+        private set => SetProperty(ref _unknownCount, value);
+    }
+
     public int ErrorsCount
     {
         get => _errorsCount;
         private set => SetProperty(ref _errorsCount, value);
+    }
+
+    public int LowStorageCount
+    {
+        get => _lowStorageCount;
+        private set => SetProperty(ref _lowStorageCount, value);
+    }
+
+    public int AnyDeskReadyCount
+    {
+        get => _anyDeskReadyCount;
+        private set => SetProperty(ref _anyDeskReadyCount, value);
+    }
+
+    public int BitLockerOffCount
+    {
+        get => _bitLockerOffCount;
+        private set => SetProperty(ref _bitLockerOffCount, value);
+    }
+
+    public int StoredCredentialAssetCount
+    {
+        get => _storedCredentialAssetCount;
+        private set => SetProperty(ref _storedCredentialAssetCount, value);
+    }
+
+    public string TotalRamDisplay
+    {
+        get => _totalRamDisplay;
+        private set => SetProperty(ref _totalRamDisplay, value);
+    }
+
+    public string TotalStorageDisplay
+    {
+        get => _totalStorageDisplay;
+        private set => SetProperty(ref _totalStorageDisplay, value);
+    }
+
+    public string OsDistributionText
+    {
+        get => _osDistributionText;
+        private set => SetProperty(ref _osDistributionText, value);
+    }
+
+    public string ManufacturerDistributionText
+    {
+        get => _manufacturerDistributionText;
+        private set => SetProperty(ref _manufacturerDistributionText, value);
+    }
+
+    public string StatusDistributionText
+    {
+        get => _statusDistributionText;
+        private set => SetProperty(ref _statusDistributionText, value);
+    }
+
+    public string StorageHealthText
+    {
+        get => _storageHealthText;
+        private set => SetProperty(ref _storageHealthText, value);
     }
 
     public async Task RefreshAsync()
@@ -281,11 +463,13 @@ public sealed class MainViewModel : ObservableObject
             }
 
             RebuildFilterOptions();
+            SetRangeDefaultsFromAssets();
             SelectedAsset = Assets.FirstOrDefault();
             LastRefreshText = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
             StatusMessage = $"Loaded {Assets.Count} assets";
             ApplyFilters();
             ExportCsvCommand.RaiseCanExecuteChanged();
+            ScanNetworkCommand.RaiseCanExecuteChanged();
         }
         catch (OperationCanceledException)
         {
@@ -298,6 +482,140 @@ public sealed class MainViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    private async Task ScanNetworkStatusAsync()
+    {
+        var assetsToScan = Assets.Where(asset => !string.IsNullOrWhiteSpace(asset.IpAddress)).ToArray();
+        if (assetsToScan.Length == 0)
+        {
+            StatusMessage = "No IP addresses to scan";
+            return;
+        }
+
+        IsNetworkScanBusy = true;
+        StatusMessage = $"Scanning {assetsToScan.Length} assets with Nmap";
+        foreach (var asset in assetsToScan)
+        {
+            asset.OnlineStatus = ScanStatus.Scanning;
+        }
+
+        AssetsView.Refresh();
+        UpdateCounts();
+
+        try
+        {
+            using var semaphore = new SemaphoreSlim(12);
+            var tasks = assetsToScan.Select(async asset =>
+            {
+                await semaphore.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    asset.OnlineStatus = await RunNmapScanAsync(asset.IpAddress).ConfigureAwait(false);
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
+
+            await Task.WhenAll(tasks).ConfigureAwait(true);
+            StatusMessage = "Network scan complete";
+        }
+        catch (FileNotFoundException)
+        {
+            foreach (var asset in assetsToScan)
+            {
+                asset.OnlineStatus = ScanStatus.Unknown;
+            }
+
+            StatusMessage = $"Nmap was not found: {NmapPath}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "Network scan failed: " + ex.Message;
+        }
+        finally
+        {
+            IsNetworkScanBusy = false;
+            AssetsView.Refresh();
+            UpdateCounts();
+        }
+    }
+
+    private async Task<ScanStatus> RunNmapScanAsync(string ipAddress)
+    {
+        var arguments = SelectedNmapScanType.Equals("Full Scan", StringComparison.OrdinalIgnoreCase)
+            ? $"-T4 -A -v -Pn {ipAddress}"
+            : $"-sn -T4 {ipAddress}";
+
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = NmapPath,
+                Arguments = arguments,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            }
+        };
+
+        try
+        {
+            process.Start();
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            throw new FileNotFoundException("Nmap executable was not found.", NmapPath, ex);
+        }
+
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+        var waitForExitTask = process.WaitForExitAsync();
+        var completed = await Task.WhenAny(waitForExitTask, Task.Delay(TimeSpan.FromSeconds(120))).ConfigureAwait(false);
+        if (completed != waitForExitTask)
+        {
+            TryKill(process);
+            return ScanStatus.Error;
+        }
+
+        var output = await outputTask.ConfigureAwait(false);
+        _ = await errorTask.ConfigureAwait(false);
+
+        if (process.ExitCode != 0 && string.IsNullOrWhiteSpace(output))
+        {
+            return ScanStatus.Error;
+        }
+
+        if (output.Contains("Host is up", StringComparison.OrdinalIgnoreCase) ||
+            (SelectedNmapScanType.Equals("Full Scan", StringComparison.OrdinalIgnoreCase) &&
+             output.Contains("/open/", StringComparison.OrdinalIgnoreCase)))
+        {
+            return ScanStatus.Online;
+        }
+
+        if (output.Contains("Host seems down", StringComparison.OrdinalIgnoreCase))
+        {
+            return ScanStatus.Offline;
+        }
+
+        return ScanStatus.Offline;
+    }
+
+    private static void TryKill(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+        }
+        catch (InvalidOperationException)
+        {
         }
     }
 
@@ -324,6 +642,22 @@ public sealed class MainViewModel : ObservableObject
         }
 
         if (LowStorageOnly && (asset.CDriveFreeGb is not double freeGb || freeGb >= LowStorageThresholdGb))
+        {
+            return false;
+        }
+
+        if (asset.RamGb is double ramGb && (ramGb < MinRamFilterGb || ramGb > MaxRamFilterGb))
+        {
+            return false;
+        }
+
+        if (asset.CDriveFreeGb is double cFreeGb && (cFreeGb < MinStorageFilterGb || cFreeGb > MaxStorageFilterGb))
+        {
+            return false;
+        }
+
+        var anyDeskQuery = AnyDeskFilter.Trim();
+        if (anyDeskQuery.Length > 0 && !Contains(asset.AnyDeskId, anyDeskQuery))
         {
             return false;
         }
@@ -367,7 +701,13 @@ public sealed class MainViewModel : ObservableObject
                Contains(asset.Software.AdobeAutodesk, query) ||
                Contains(asset.Software.LocalUsers, query) ||
                Contains(asset.SourceFileName, query) ||
-               asset.Software.InstalledPrinters.Any(printer => Contains(printer.Name, query));
+               asset.SharedFolders.Any(folder => Contains(folder, query)) ||
+               asset.StoredCredentials.Any(entry => Contains(entry.Target, query) || Contains(entry.User, query) || Contains(entry.Raw, query)) ||
+               asset.SmbCredentials.Any(entry => Contains(entry.NasIp, query) || Contains(entry.StoredUser, query) || Contains(entry.ActiveConnection, query) || Contains(entry.Raw, query)) ||
+               asset.BitLockerStatus.Any(volume => Contains(volume.Volume, query) || Contains(volume.Protection, query) || Contains(volume.Encryption, query) || Contains(volume.Raw, query)) ||
+               asset.LocalDisks.Any(disk => Contains(disk.DriveLetter, query) || Contains(disk.DriveType, query) || Contains(disk.Raw, query)) ||
+               asset.Software.InstalledPrinters.Any(printer => Contains(printer.Name, query)) ||
+               asset.Software.InstalledPrograms.Any(program => Contains(program, query));
     }
 
     private static bool Contains(string? value, string query)
@@ -396,11 +736,23 @@ public sealed class MainViewModel : ObservableObject
 
     private void UpdateCounts()
     {
+        var visibleAssets = AssetsView.Cast<AssetRecord>().ToArray();
         LoadedCount = Assets.Count;
-        FilteredCount = AssetsView.Cast<object>().Count();
-        OnlineCount = Assets.Count(asset => asset.OnlineStatus == ScanStatus.Online);
-        OfflineCount = Assets.Count(asset => asset.OnlineStatus == ScanStatus.Offline);
-        ErrorsCount = Assets.Sum(asset => asset.ParseWarnings.Count);
+        FilteredCount = visibleAssets.Length;
+        OnlineCount = visibleAssets.Count(asset => asset.OnlineStatus == ScanStatus.Online);
+        OfflineCount = visibleAssets.Count(asset => asset.OnlineStatus == ScanStatus.Offline);
+        UnknownCount = visibleAssets.Count(asset => asset.OnlineStatus == ScanStatus.Unknown);
+        ErrorsCount = visibleAssets.Sum(asset => asset.ParseWarnings.Count);
+        LowStorageCount = visibleAssets.Count(asset => asset.CDriveFreeGb is double freeGb && freeGb < LowStorageThresholdGb);
+        AnyDeskReadyCount = visibleAssets.Count(asset => asset.HasAnyDesk);
+        BitLockerOffCount = visibleAssets.Count(asset => asset.HasBitLockerOff);
+        StoredCredentialAssetCount = visibleAssets.Count(asset => asset.HasStoredCredentials);
+        TotalRamDisplay = FormatGb(visibleAssets.Sum(asset => asset.RamGb ?? 0d));
+        TotalStorageDisplay = FormatGb(visibleAssets.SelectMany(asset => asset.LocalDisks).Sum(disk => disk.TotalGb ?? 0d));
+        OsDistributionText = "OS: " + FormatDistribution(visibleAssets.Select(asset => NormalizeOs(asset.OsVersion)).Where(value => value.Length > 0));
+        ManufacturerDistributionText = "Makers: " + FormatDistribution(visibleAssets.Select(asset => asset.Manufacturer).Where(value => value.Length > 0));
+        StatusDistributionText = $"Status: {OnlineCount} online / {OfflineCount} offline / {UnknownCount} unknown";
+        StorageHealthText = LowStorageCount == 0 ? "Storage: no low C: alerts" : $"Storage: {LowStorageCount} below {LowStorageThresholdGb:0.#} GB";
     }
 
     private void RebuildFilterOptions()
@@ -417,6 +769,22 @@ public sealed class MainViewModel : ObservableObject
         {
             SelectedManufacturerFilter = AllFilter;
         }
+    }
+
+    private void SetRangeDefaultsFromAssets()
+    {
+        var maxRam = Assets.Select(asset => asset.RamGb ?? 0d).DefaultIfEmpty(0d).Max();
+        var maxStorage = Assets.Select(asset => asset.CDriveFreeGb ?? 0d).DefaultIfEmpty(0d).Max();
+
+        _minRamFilterGb = 0d;
+        _maxRamFilterGb = Math.Max(16d, Math.Ceiling(maxRam));
+        _minStorageFilterGb = 0d;
+        _maxStorageFilterGb = Math.Max(100d, Math.Ceiling(maxStorage));
+
+        OnPropertyChanged(nameof(MinRamFilterGb));
+        OnPropertyChanged(nameof(MaxRamFilterGb));
+        OnPropertyChanged(nameof(MinStorageFilterGb));
+        OnPropertyChanged(nameof(MaxStorageFilterGb));
     }
 
     private static void ReplaceOptions(ObservableCollection<string> target, IEnumerable<string> values)
@@ -467,6 +835,51 @@ public sealed class MainViewModel : ObservableObject
     private static bool IsAll(string value)
     {
         return string.IsNullOrWhiteSpace(value) || value.Equals(AllFilter, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ResetFilters()
+    {
+        _searchText = string.Empty;
+        _anyDeskFilter = string.Empty;
+        _selectedOsFilter = AllFilter;
+        _selectedManufacturerFilter = AllFilter;
+        _selectedStatusFilter = AllFilter;
+        _lowStorageOnly = false;
+        _hasAnyDeskOnly = false;
+        _hasBitLockerOffOnly = false;
+        _hasStoredCredentialsOnly = false;
+        SetRangeDefaultsFromAssets();
+
+        OnPropertyChanged(nameof(SearchText));
+        OnPropertyChanged(nameof(AnyDeskFilter));
+        OnPropertyChanged(nameof(SelectedOsFilter));
+        OnPropertyChanged(nameof(SelectedManufacturerFilter));
+        OnPropertyChanged(nameof(SelectedStatusFilter));
+        OnPropertyChanged(nameof(LowStorageOnly));
+        OnPropertyChanged(nameof(HasAnyDeskOnly));
+        OnPropertyChanged(nameof(HasBitLockerOffOnly));
+        OnPropertyChanged(nameof(HasStoredCredentialsOnly));
+
+        ApplyFilters();
+        ClearSearchCommand.RaiseCanExecuteChanged();
+    }
+
+    private static string FormatGb(double value)
+    {
+        return value <= 0d ? "0 GB" : value.ToString("0.#", CultureInfo.InvariantCulture) + " GB";
+    }
+
+    private static string FormatDistribution(IEnumerable<string> values)
+    {
+        var groups = values.Where(value => !string.IsNullOrWhiteSpace(value))
+            .GroupBy(value => value, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .Take(4)
+            .Select(group => $"{group.Key} {group.Count()}")
+            .ToArray();
+
+        return groups.Length == 0 ? "no data" : string.Join(" | ", groups);
     }
 
     private void OpenAssetsFolder()

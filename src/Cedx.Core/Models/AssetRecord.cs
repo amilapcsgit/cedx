@@ -46,6 +46,30 @@ public sealed class AssetRecord
     public string AnyDeskDisplay => string.IsNullOrWhiteSpace(AnyDeskId) ? string.Empty : AnyDeskId;
     public string AnyDeskActionText => HasAnyDesk ? $"Connect {AnyDeskId}" : "No AnyDesk";
     public string RemoteAccessStatus => HasAnyDesk ? "Ready" : "No ID";
+    public string CDriveTileDisplay => CDriveFreeGb is double value ? value.ToString("0.#", CultureInfo.InvariantCulture) + " GB" : "N/A";
+    public string StorageHealthDisplay => HasLowStorage ? "Low C:" : "Storage OK";
+    public string LocalDiskSummary => LocalDisks.Count == 0
+        ? "No local disk data"
+        : string.Join("; ", LocalDisks.Select(d => string.IsNullOrWhiteSpace(d.DriveLetter)
+            ? d.Raw
+            : $"{d.DriveLetter} {d.FreeGb?.ToString("0.#", CultureInfo.InvariantCulture) ?? "?"}/{d.TotalGb?.ToString("0.#", CultureInfo.InvariantCulture) ?? "?"} GB free"));
+    public string PrinterSummary => Software.InstalledPrinters.Count == 0
+        ? "No printers parsed"
+        : string.Join("; ", Software.InstalledPrinters.Select(printer => printer.Name));
+    public string BitLockerSummary => BitLockerStatus.Count == 0
+        ? "No BitLocker rows"
+        : string.Join("; ", BitLockerStatus.Select(volume => volume.Raw));
+    public string CredentialSummary => StoredCredentials.Count == 0
+        ? "No stored credentials parsed"
+        : string.Join("; ", StoredCredentials.Select(entry => string.IsNullOrWhiteSpace(entry.Target) ? entry.Raw : $"{entry.Target} ({entry.User})"));
+    public string SmbCredentialSummary => SmbCredentials.Count == 0
+        ? "No SMB credential rows"
+        : string.Join("; ", SmbCredentials.Select(entry => string.IsNullOrWhiteSpace(entry.NasIp) ? entry.Raw : $"{entry.NasIp} {entry.StoredUser} {entry.ActiveConnection}"));
+    public string SharedFolderSummary => SharedFolders.Count == 0 ? "No shared folders parsed" : string.Join("; ", SharedFolders);
+    public string InstalledProgramCountDisplay => Software.InstalledPrograms.Count == 0 ? "No installed-program list" : Software.InstalledPrograms.Count.ToString(CultureInfo.InvariantCulture) + " programs";
+    public string InstalledProgramPreview => Software.InstalledPrograms.Count == 0
+        ? "No installed-program list parsed"
+        : string.Join("; ", Software.InstalledPrograms.Take(12));
     public string LastRebootOrUptime => string.IsNullOrWhiteSpace(Os.LastRebootTime) ? Os.SystemUptime : $"{Os.LastRebootTime} / {Os.SystemUptime}".Trim(' ', '/');
     public string WindowsUserDisplay
     {
@@ -97,6 +121,7 @@ public sealed class AssetRecord
     }
 
     public bool HasAnyDesk => !string.IsNullOrWhiteSpace(AnyDeskId) && !AnyDeskId.Equals("N/A", StringComparison.OrdinalIgnoreCase) && !AnyDeskId.Equals("Not Found", StringComparison.OrdinalIgnoreCase);
+    public bool HasLowStorage => CDriveFreeGb is double freeGb && freeGb < 10d;
     public bool HasStoredCredentials => StoredCredentials.Count > 0;
     public bool HasBitLockerOff => BitLockerStatus.Any(v => v.Protection.IndexOf("Off", StringComparison.OrdinalIgnoreCase) >= 0 || v.Raw.IndexOf("Protection: Off", StringComparison.OrdinalIgnoreCase) >= 0);
 }
@@ -151,6 +176,7 @@ public sealed class SoftwareInfo
     public string AdobeAutodesk { get; set; } = string.Empty;
     public string LocalUsers { get; set; } = string.Empty;
     public IReadOnlyList<PrinterEntry> InstalledPrinters { get; set; } = [];
+    public IReadOnlyList<string> InstalledPrograms { get; set; } = [];
 }
 
 public sealed class StorageDevice

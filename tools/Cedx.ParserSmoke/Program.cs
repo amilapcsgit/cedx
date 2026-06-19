@@ -17,11 +17,13 @@ var withRam = records.Count(record => record.RamGb is not null);
 var withCDrive = records.Count(record => record.CDriveFreeGb is not null);
 var withCredentials = records.Count(record => record.StoredCredentials.Count > 0);
 var withWinRm = records.Count(record => !string.IsNullOrWhiteSpace(record.WinRmCommand));
+var withInstalledPrograms = records.Count(record => record.Software.InstalledPrograms.Count > 0);
 
 Console.WriteLine($"RAM parsed: {withRam}");
 Console.WriteLine($"C: free parsed: {withCDrive}");
 Console.WriteLine($"Stored credentials sections: {withCredentials}");
 Console.WriteLine($"WinRM commands: {withWinRm}");
+Console.WriteLine($"Installed-program lists: {withInstalledPrograms}");
 
 foreach (var record in records.Take(5))
 {
