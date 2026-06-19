@@ -45,10 +45,10 @@
         </Style>
 
         <Style x:Key="AssetTileBorderStyle" TargetType="{x:Type Border}">
-            <Setter Property="MinWidth" Value="300" />
-            <Setter Property="MinHeight" Value="226" />
-            <Setter Property="Margin" Value="0,0,14,14" />
-            <Setter Property="Padding" Value="15" />
+            <Setter Property="MinWidth" Value="280" />
+            <Setter Property="MinHeight" Value="222" />
+            <Setter Property="Margin" Value="0,0,12,12" />
+            <Setter Property="Padding" Value="14" />
             <Setter Property="CornerRadius" Value="20" />
             <Setter Property="Background" Value="{StaticResource TileGlassBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
@@ -186,7 +186,7 @@
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0"
-                    Background="{StaticResource LiquidGlassBrush}"
+                    Background="{StaticResource SidebarGlassBrush}"
                     BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="0,0,1,0">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -375,7 +375,7 @@
                          Style="{StaticResource TileListBoxStyle}"
                          ItemContainerStyle="{StaticResource TileListBoxItemStyle}"
                          ScrollViewer.CanContentScroll="False"
-                         Padding="14">
+                         Padding="12">
                     <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel IsItemsHost="True" />
@@ -536,7 +536,7 @@
             </Grid>
 
             <Border Grid.Column="2"
-                    Background="{StaticResource LiquidGlassBrush}"
+                    Background="{StaticResource DetailsGlassBrush}"
                     BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="1,0,0,0">
                 <Grid>
@@ -621,7 +621,7 @@
                                 <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedAsset.AnyDeskId}" Foreground="{StaticResource AccentBrush}" />
                                 <Button Grid.Row="0" Grid.Column="2" Content="Connect" Style="{StaticResource PrimaryButtonStyle}" Command="{Binding ConnectSelectedAnyDeskCommand}" />
                                 <TextBox Grid.Row="1"
-                                         Grid.ColumnSpan="3"
+                                         Grid.ColumnSpan="2"
                                          Text="{Binding SelectedAsset.WinRmCommand}"
                                          IsReadOnly="True"
                                          TextWrapping="Wrap"
@@ -632,8 +632,9 @@
                                         Style="{StaticResource CompactButtonStyle}"
                                         Command="{Binding CopyTextCommand}"
                                         CommandParameter="{Binding SelectedAsset.WinRmCommand}"
+                                        Margin="8,8,0,6"
                                         HorizontalAlignment="Right"
-                                        VerticalAlignment="Bottom" />
+                                        VerticalAlignment="Stretch" />
                             </Grid>
 
                             <TextBlock Text="Hardware" Style="{StaticResource SectionTextStyle}" />
