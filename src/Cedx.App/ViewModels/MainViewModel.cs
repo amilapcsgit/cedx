@@ -86,6 +86,7 @@ public sealed class MainViewModel : ObservableObject
         RefreshCommand = new AsyncRelayCommand(_ => RefreshAsync());
         ScanNetworkCommand = new AsyncRelayCommand(_ => ScanNetworkStatusAsync(), _ => Assets.Count > 0 && !IsBusy && !IsNetworkScanBusy);
         ExportCsvCommand = new RelayCommand(_ => ExportFilteredCsv(), _ => Assets.Count > 0);
+        ExportSoftwareCsvCommand = new RelayCommand(_ => ExportInstalledProgramsCsv(), _ => Assets.Count > 0);
         OpenAssetsFolderCommand = new RelayCommand(_ => OpenAssetsFolder());
         CopyTextCommand = new RelayCommand(parameter => CopyText(parameter as string));
         LaunchAnyDeskCommand = new RelayCommand(parameter => LaunchAnyDesk(parameter as string), parameter => CanLaunchAnyDesk(parameter as string));
@@ -104,6 +105,7 @@ public sealed class MainViewModel : ObservableObject
     public AsyncRelayCommand RefreshCommand { get; }
     public AsyncRelayCommand ScanNetworkCommand { get; }
     public RelayCommand ExportCsvCommand { get; }
+    public RelayCommand ExportSoftwareCsvCommand { get; }
     public RelayCommand OpenAssetsFolderCommand { get; }
     public RelayCommand CopyTextCommand { get; }
     public RelayCommand LaunchAnyDeskCommand { get; }
@@ -469,6 +471,7 @@ public sealed class MainViewModel : ObservableObject
             StatusMessage = $"Loaded {Assets.Count} assets";
             ApplyFilters();
             ExportCsvCommand.RaiseCanExecuteChanged();
+            ExportSoftwareCsvCommand.RaiseCanExecuteChanged();
             ScanNetworkCommand.RaiseCanExecuteChanged();
         }
         catch (OperationCanceledException)
@@ -499,6 +502,8 @@ public sealed class MainViewModel : ObservableObject
         foreach (var asset in assetsToScan)
         {
             asset.OnlineStatus = ScanStatus.Scanning;
+            asset.Network.NmapScanOutput = "Scan queued.";
+            asset.Network.NmapLastScanned = string.Empty;
         }
 
         AssetsView.Refresh();
@@ -512,7 +517,10 @@ public sealed class MainViewModel : ObservableObject
                 await semaphore.WaitAsync().ConfigureAwait(false);
                 try
                 {
-                    asset.OnlineStatus = await RunNmapScanAsync(asset.IpAddress).ConfigureAwait(false);
+                    var result = await RunNmapScanAsync(asset.IpAddress).ConfigureAwait(false);
+                    asset.OnlineStatus = result.Status;
+                    asset.Network.NmapScanOutput = result.Output;
+                    asset.Network.NmapLastScanned = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
                 }
                 finally
                 {
@@ -540,11 +548,12 @@ public sealed class MainViewModel : ObservableObject
         {
             IsNetworkScanBusy = false;
             AssetsView.Refresh();
+            OnPropertyChanged(nameof(SelectedAsset));
             UpdateCounts();
         }
     }
 
-    private async Task<ScanStatus> RunNmapScanAsync(string ipAddress)
+    private async Task<NetworkScanResult> RunNmapScanAsync(string ipAddress)
     {
         var arguments = SelectedNmapScanType.Equals("Full Scan", StringComparison.OrdinalIgnoreCase)
             ? $"-T4 -A -v -Pn {ipAddress}"
@@ -579,31 +588,63 @@ public sealed class MainViewModel : ObservableObject
         if (completed != waitForExitTask)
         {
             TryKill(process);
-            return ScanStatus.Error;
+            return new NetworkScanResult(ScanStatus.Error, "Nmap scan timed out after 120 seconds.");
         }
 
         var output = await outputTask.ConfigureAwait(false);
-        _ = await errorTask.ConfigureAwait(false);
+        var error = await errorTask.ConfigureAwait(false);
+        var rawOutput = BuildNmapOutput(output, error);
 
         if (process.ExitCode != 0 && string.IsNullOrWhiteSpace(output))
         {
-            return ScanStatus.Error;
+            return new NetworkScanResult(ScanStatus.Error, rawOutput);
         }
 
         if (output.Contains("Host is up", StringComparison.OrdinalIgnoreCase) ||
             (SelectedNmapScanType.Equals("Full Scan", StringComparison.OrdinalIgnoreCase) &&
              output.Contains("/open/", StringComparison.OrdinalIgnoreCase)))
         {
-            return ScanStatus.Online;
+            return new NetworkScanResult(ScanStatus.Online, rawOutput);
         }
 
         if (output.Contains("Host seems down", StringComparison.OrdinalIgnoreCase))
         {
-            return ScanStatus.Offline;
+            return new NetworkScanResult(ScanStatus.Offline, rawOutput);
         }
 
-        return ScanStatus.Offline;
+        return new NetworkScanResult(ScanStatus.Offline, rawOutput);
     }
+
+    private static string BuildNmapOutput(string output, string error)
+    {
+        var builder = new StringBuilder();
+        if (!string.IsNullOrWhiteSpace(output))
+        {
+            builder.Append(output.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(error))
+        {
+            if (builder.Length > 0)
+            {
+                builder.AppendLine();
+                builder.AppendLine();
+            }
+
+            builder.Append("stderr: ");
+            builder.Append(error.Trim());
+        }
+
+        if (builder.Length == 0)
+        {
+            return "Nmap returned no output.";
+        }
+
+        var text = builder.ToString();
+        return text.Length <= 4000 ? text : text[..4000] + Environment.NewLine + "... output truncated in UI";
+    }
+
+    private readonly record struct NetworkScanResult(ScanStatus Status, string Output);
 
     private static void TryKill(Process process)
     {
@@ -685,6 +726,7 @@ public sealed class MainViewModel : ObservableObject
     {
         return Contains(asset.Hostname, query) ||
                Contains(asset.IpAddress, query) ||
+               Contains(asset.MacAddress, query) ||
                Contains(asset.PcDomain, query) ||
                Contains(asset.WindowsAccount, query) ||
                Contains(asset.WindowsUserDisplay, query) ||
@@ -700,6 +742,7 @@ public sealed class MainViewModel : ObservableObject
                Contains(asset.OfficeVersion, query) ||
                Contains(asset.Software.AdobeAutodesk, query) ||
                Contains(asset.Software.LocalUsers, query) ||
+               Contains(asset.Network.NmapScanOutput, query) ||
                Contains(asset.SourceFileName, query) ||
                asset.SharedFolders.Any(folder => Contains(folder, query)) ||
                asset.StoredCredentials.Any(entry => Contains(entry.Target, query) || Contains(entry.User, query) || Contains(entry.Raw, query)) ||
@@ -906,7 +949,7 @@ public sealed class MainViewModel : ObservableObject
         }
 
         var builder = new StringBuilder();
-        AppendCsvRow(builder, "Hostname", "IP Address", "Windows Account", "OS Version", "Manufacturer", "Model", "Serial Number", "CPU", "RAM GB", "C Free GB", "AnyDesk ID", "Antivirus", "BitLocker summary", "Online Status", "Source File");
+        AppendCsvRow(builder, "Hostname", "IP Address", "MAC Address", "Windows Account", "OS Version", "Manufacturer", "Model", "Serial Number", "CPU", "RAM GB", "C Free GB", "AnyDesk ID", "Antivirus", "BitLocker summary", "Network Mode", "Gateway", "DNS", "Online Status", "Source File");
 
         foreach (var asset in AssetsView.Cast<AssetRecord>())
         {
@@ -914,6 +957,7 @@ public sealed class MainViewModel : ObservableObject
                 builder,
                 asset.Hostname,
                 asset.IpAddress,
+                asset.MacAddress,
                 asset.WindowsAccount,
                 asset.OsVersion,
                 asset.Manufacturer,
@@ -925,12 +969,58 @@ public sealed class MainViewModel : ObservableObject
                 asset.AnyDeskId,
                 asset.Antivirus,
                 string.Join("; ", asset.BitLockerStatus.Select(volume => volume.Raw)),
+                asset.Network.NetworkMode,
+                asset.Network.DefaultGateway,
+                asset.Network.DnsServers,
                 asset.OnlineStatus.ToString(),
                 asset.SourceFilePath);
         }
 
         File.WriteAllText(dialog.FileName, builder.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         StatusMessage = "Exported CSV";
+    }
+
+    private void ExportInstalledProgramsCsv()
+    {
+        var rows = AssetsView.Cast<AssetRecord>()
+            .SelectMany(asset => asset.Software.InstalledPrograms.Select(program => new
+            {
+                asset.Hostname,
+                asset.IpAddress,
+                asset.WindowsAccount,
+                asset.Manufacturer,
+                asset.Model,
+                Program = program,
+                asset.SourceFilePath
+            }))
+            .ToArray();
+
+        if (rows.Length == 0)
+        {
+            StatusMessage = "No installed-program lists to export";
+            return;
+        }
+
+        var dialog = new SaveFileDialog
+        {
+            Filter = "CSV files (*.csv)|*.csv",
+            FileName = "cedx_installed_programs_" + DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture) + ".csv"
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        var builder = new StringBuilder();
+        AppendCsvRow(builder, "Hostname", "IP Address", "Windows Account", "Manufacturer", "Model", "Program", "Source File");
+        foreach (var row in rows)
+        {
+            AppendCsvRow(builder, row.Hostname, row.IpAddress, row.WindowsAccount, row.Manufacturer, row.Model, row.Program, row.SourceFilePath);
+        }
+
+        File.WriteAllText(dialog.FileName, builder.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+        StatusMessage = $"Exported {rows.Length} software rows";
     }
 
     private static void AppendCsvRow(StringBuilder builder, params string[] values)

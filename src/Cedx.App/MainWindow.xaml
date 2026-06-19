@@ -159,10 +159,7 @@
                 BorderThickness="0,0,0,1">
             <Grid Margin="16,0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="260" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="244" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
@@ -173,22 +170,24 @@
                            VerticalAlignment="Center"
                            FontSize="16"
                            FontWeight="SemiBold" />
-                <Button Grid.Column="1"
-                        Margin="0,0,8,0"
-                        Content="Refresh"
-                        Command="{Binding RefreshCommand}" />
-                <Button Grid.Column="2"
-                        Margin="0,0,8,0"
-                        Content="Open Assets Folder"
-                        Command="{Binding OpenAssetsFolderCommand}" />
-                <Button Grid.Column="3"
-                        Margin="0,0,8,0"
-                        Content="Export CSV"
-                        Command="{Binding ExportCsvCommand}" />
-                <Button Grid.Column="4"
-                        Content="Scan Status"
-                        Command="{Binding ScanNetworkCommand}" />
-                <TextBlock Grid.Column="6"
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal">
+                    <Button Margin="0,0,8,0"
+                            Content="Refresh"
+                            Command="{Binding RefreshCommand}" />
+                    <Button Margin="0,0,8,0"
+                            Content="Open Assets Folder"
+                            Command="{Binding OpenAssetsFolderCommand}" />
+                    <Button Margin="0,0,8,0"
+                            Content="Export CSV"
+                            Command="{Binding ExportCsvCommand}" />
+                    <Button Margin="0,0,8,0"
+                            Content="Export Software"
+                            Command="{Binding ExportSoftwareCsvCommand}" />
+                    <Button Content="Scan Status"
+                            Command="{Binding ScanNetworkCommand}" />
+                </StackPanel>
+                <TextBlock Grid.Column="3"
                            VerticalAlignment="Center"
                            Foreground="{StaticResource MutedTextBrush}"
                            Text="{Binding LastRefreshText, StringFormat=Last refresh: {0}}" />
@@ -197,9 +196,9 @@
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="236" />
+                <ColumnDefinition Width="248" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="380" />
+                <ColumnDefinition Width="410" />
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0"
@@ -314,7 +313,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="70" />
                     <RowDefinition Height="118" />
-                    <RowDefinition Height="92" />
+                    <RowDefinition Height="104" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
@@ -841,6 +840,9 @@
                                     <RowDefinition Height="28" />
                                     <RowDefinition Height="28" />
                                     <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="28" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="28" />
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0" Style="{StaticResource FieldLabelStyle}" Text="Mode" />
                                 <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedAsset.Network.NetworkMode}" />
@@ -848,6 +850,21 @@
                                 <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedAsset.Network.DefaultGateway}" />
                                 <TextBlock Grid.Row="2" Style="{StaticResource FieldLabelStyle}" Text="DNS" />
                                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedAsset.Network.DnsServers}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="3" Style="{StaticResource FieldLabelStyle}" Text="MAC" Margin="0,5,0,0" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedAsset.MacAddress}" TextTrimming="CharacterEllipsis" Margin="0,5,0,0" />
+                                <TextBlock Grid.Row="4" Style="{StaticResource FieldLabelStyle}" Text="Nmap" Margin="0,8,0,0" VerticalAlignment="Top" />
+                                <TextBox Grid.Row="4"
+                                         Grid.Column="1"
+                                         Text="{Binding SelectedAsset.NmapScanOutputDisplay}"
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         VerticalScrollBarVisibility="Auto"
+                                         VerticalContentAlignment="Top"
+                                         Padding="12,10"
+                                         MinHeight="86"
+                                         MaxHeight="180"
+                                         Margin="0,8,0,0" />
+                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedAsset.Network.NmapLastScanned, StringFormat=Last scan: {0}}" Foreground="{StaticResource SubtleTextBrush}" Margin="0,5,0,0" />
                             </Grid>
 
                             <TextBlock Text="Security" Style="{StaticResource SectionTextStyle}" />
@@ -865,6 +882,11 @@
                             <TextBlock Text="{Binding SelectedAsset.PrinterSummary, StringFormat=Printers: {0}}" TextWrapping="Wrap" Margin="0,0,0,4" />
                             <TextBlock Text="{Binding SelectedAsset.InstalledProgramCountDisplay, StringFormat=Installed programs: {0}}" TextWrapping="Wrap" Margin="0,0,0,4" />
                             <TextBlock Text="{Binding SelectedAsset.InstalledProgramPreview}" TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,14" />
+                            <Button Content="Export Software CSV"
+                                    Style="{StaticResource CompactButtonStyle}"
+                                    Command="{Binding ExportSoftwareCsvCommand}"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,18" />
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>

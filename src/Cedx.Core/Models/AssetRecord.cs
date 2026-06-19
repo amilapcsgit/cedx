@@ -27,6 +27,7 @@ public sealed class AssetRecord
 
     public string Hostname => System.Hostname;
     public string IpAddress => Network.IpAddress;
+    public string MacAddress => Network.MacAddress;
     public string PcDomain => System.PcDomain;
     public string WindowsAccount => System.WindowsAccount;
     public string AnyDeskId => Network.AnyDeskId;
@@ -70,6 +71,9 @@ public sealed class AssetRecord
     public string InstalledProgramPreview => Software.InstalledPrograms.Count == 0
         ? "No installed-program list parsed"
         : string.Join("; ", Software.InstalledPrograms.Take(12));
+    public string NmapScanOutputDisplay => string.IsNullOrWhiteSpace(Network.NmapScanOutput)
+        ? "Run Scan Status to populate Nmap output."
+        : Network.NmapScanOutput;
     public string LastRebootOrUptime => string.IsNullOrWhiteSpace(Os.LastRebootTime) ? Os.SystemUptime : $"{Os.LastRebootTime} / {Os.SystemUptime}".Trim(' ', '/');
     public string WindowsUserDisplay
     {
@@ -129,11 +133,14 @@ public sealed class AssetRecord
 public sealed class NetworkInfo
 {
     public string IpAddress { get; set; } = string.Empty;
+    public string MacAddress { get; set; } = string.Empty;
     public string PcDomain { get; set; } = string.Empty;
     public string AnyDeskId { get; set; } = string.Empty;
     public string NetworkMode { get; set; } = string.Empty;
     public string DnsServers { get; set; } = string.Empty;
     public string DefaultGateway { get; set; } = string.Empty;
+    public string NmapScanOutput { get; set; } = string.Empty;
+    public string NmapLastScanned { get; set; } = string.Empty;
 }
 
 public sealed class OsInfo

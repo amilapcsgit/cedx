@@ -21,48 +21,53 @@ public sealed partial class AssetTextParser : IAssetParser
             RawContent = content
         };
 
+        var networkBlock = GetColonBlock(lines, "Network Configuration:");
+        var systemInfoBlock = GetEqualsBlock(lines, "=== systeminfo (selected fields) ===");
+
         record.System = new SystemInfo
         {
-            Hostname = GetField(lines, "Hostname") ?? Path.GetFileNameWithoutExtension(sourceFilePath),
-            PcDomain = GetField(lines, "PC Domain") ?? string.Empty,
-            WindowsAccount = GetField(lines, "Windows account") ?? string.Empty,
-            UserEmails = GetField(lines, "User Email(s)") ?? string.Empty,
-            Manufacturer = GetField(lines, "System Manufacturer") ?? string.Empty,
-            Model = GetField(lines, "System Model") ?? string.Empty,
-            SerialNumber = GetField(lines, "Serial Number") ?? string.Empty,
-            BiosVersion = GetField(lines, "BIOS Version") ?? string.Empty
+            Hostname = GetFirstField(lines, "Hostname") ?? Path.GetFileNameWithoutExtension(sourceFilePath),
+            PcDomain = GetFirstField(lines, "PC Domain") ?? string.Empty,
+            WindowsAccount = GetFirstField(lines, "Windows account") ?? string.Empty,
+            UserEmails = GetFirstField(lines, "User Email(s)") ?? string.Empty,
+            Manufacturer = GetFirstField(lines, "System Manufacturer") ?? GetFirstField(systemInfoBlock, "System Manufacturer", "Produttore sistema") ?? string.Empty,
+            Model = GetFirstField(lines, "System Model") ?? GetFirstField(systemInfoBlock, "System Model", "Modello sistema") ?? string.Empty,
+            SerialNumber = GetFirstField(lines, "Serial Number") ?? string.Empty,
+            BiosVersion = GetFirstField(lines, "BIOS Version") ?? GetFirstField(systemInfoBlock, "BIOS Version", "Versione BIOS") ?? string.Empty
         };
 
         record.Network = new NetworkInfo
         {
-            IpAddress = GetField(lines, "IP Address") ?? string.Empty,
+            IpAddress = GetFirstField(lines, "IP Address") ?? string.Empty,
+            MacAddress = GetFirstField(lines, "MAC Address") ?? GetFirstField(networkBlock, "MAC Address") ?? string.Empty,
             PcDomain = record.System.PcDomain,
-            AnyDeskId = GetField(lines, "AnyDesk ID") ?? string.Empty
+            AnyDeskId = GetFirstField(lines, "AnyDesk ID") ?? string.Empty
         };
 
+        var systemInfoOsName = GetFirstField(systemInfoBlock, "OS Name", "Nome SO");
+        var systemInfoOsVersion = GetFirstField(systemInfoBlock, "OS Version", "Versione SO");
         record.Os = new OsInfo
         {
-            Version = GetField(lines, "OS Version") ?? string.Empty,
-            InstallDate = GetField(lines, "OS Install Date") ?? string.Empty,
-            LastRebootTime = GetField(lines, "Last Reboot Time") ?? string.Empty,
-            SystemUptime = GetField(lines, "System Uptime") ?? string.Empty,
-            Language = GetField(lines, "Windows Language") ?? string.Empty
+            Version = GetFirstField(lines, "OS Version") ?? CombineOsVersion(systemInfoOsName, systemInfoOsVersion),
+            InstallDate = GetFirstField(lines, "OS Install Date") ?? GetFirstField(systemInfoBlock, "Original Install Date", "Data di installazione originale") ?? string.Empty,
+            LastRebootTime = GetFirstField(lines, "Last Reboot Time") ?? GetFirstField(systemInfoBlock, "System Boot Time", "Ora di avvio sistema") ?? string.Empty,
+            SystemUptime = GetFirstField(lines, "System Uptime") ?? string.Empty,
+            Language = GetFirstField(lines, "Windows Language") ?? GetFirstField(systemInfoBlock, "System Locale", "Impostazioni locali sistema") ?? string.Empty
         };
 
-        var ramRaw = GetField(lines, "RAM") ?? string.Empty;
+        var ramRaw = GetFirstField(lines, "RAM") ?? string.Empty;
         record.Hardware = new HardwareInfo
         {
-            Cpu = GetField(lines, "CPU") ?? string.Empty,
+            Cpu = GetFirstField(lines, "CPU") ?? string.Empty,
             RamRaw = ramRaw,
             RamGb = ParseGb(ramRaw),
-            Gpu = GetField(lines, "GPU") ?? string.Empty,
-            MonitorModel = GetField(lines, "Monitor Model") ?? string.Empty
+            Gpu = GetFirstField(lines, "GPU") ?? string.Empty,
+            MonitorModel = GetFirstField(lines, "Monitor Model") ?? string.Empty
         };
 
-        var networkBlock = GetColonBlock(lines, "Network Configuration:");
-        record.Network.NetworkMode = GetField(networkBlock, "Network Mode") ?? string.Empty;
-        record.Network.DnsServers = GetField(networkBlock, "DNS Servers") ?? string.Empty;
-        record.Network.DefaultGateway = GetField(networkBlock, "Default Gateway") ?? string.Empty;
+        record.Network.NetworkMode = GetFirstField(networkBlock, "Network Mode") ?? string.Empty;
+        record.Network.DnsServers = GetFirstField(networkBlock, "DNS Servers") ?? string.Empty;
+        record.Network.DefaultGateway = GetFirstField(networkBlock, "Default Gateway") ?? string.Empty;
 
         record.Software = new SoftwareInfo
         {
@@ -81,7 +86,13 @@ public sealed partial class AssetTextParser : IAssetParser
         record.SharedFolders = ParseSimpleList(GetColonBlock(lines, "Shared Folders:"));
         record.BitLockerStatus = ParseBitLocker(GetColonBlock(lines, "Bitlocker Status:"), warnings);
         record.SmbCredentials = ParseSmbCredentials(GetEqualsBlock(lines, "=== SMB Credentials for Provided NAS IPs ==="), warnings);
-        record.LocalDisks = ParseLocalDisks(GetEqualsBlock(lines, "=== Local Disks (Space & Type) ==="), warnings);
+        var localDiskLines = GetEqualsBlock(lines, "=== Local Disks (Space & Type) ===");
+        if (localDiskLines.Count == 0)
+        {
+            localDiskLines = GetEqualsBlock(lines, "=== Local Disks (in MB) ===");
+        }
+
+        record.LocalDisks = ParseLocalDisks(localDiskLines, warnings);
         record.WinRmCommand = GetWinRmCommand(lines);
 
         if (string.IsNullOrWhiteSpace(record.System.Hostname))
@@ -125,6 +136,37 @@ public sealed partial class AssetTextParser : IAssetParser
         }
 
         return null;
+    }
+
+    private static string? GetFirstField(IEnumerable<string> lines, params string[] fieldNames)
+    {
+        foreach (var fieldName in fieldNames)
+        {
+            var value = GetField(lines, fieldName);
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
+
+    private static string CombineOsVersion(string? osName, string? osVersion)
+    {
+        if (string.IsNullOrWhiteSpace(osName))
+        {
+            return osVersion ?? string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(osVersion))
+        {
+            return osName;
+        }
+
+        return osVersion.Contains(osName, StringComparison.OrdinalIgnoreCase)
+            ? osVersion
+            : $"{osName} ({osVersion})";
     }
 
     private static IReadOnlyList<string> GetColonBlock(IReadOnlyList<string> lines, string heading)
@@ -444,7 +486,7 @@ public sealed partial class AssetTextParser : IAssetParser
     [GeneratedRegex(@"^(?<volume>[^:]+):\s*Protection:\s*(?<protection>[^,]+),\s*Encryption:\s*(?<encryption>.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex BitLockerRegex();
 
-    [GeneratedRegex(@"^\s*(?<drive>[A-Z]:)\s+Total:\s*(?<total>[0-9]+(?:[\.,][0-9]+)?)\s*MB,\s*Free:\s*(?<free>[0-9]+(?:[\.,][0-9]+)?)\s*MB,\s*Type:\s*(?<type>.+?)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^\s*(?<drive>[A-Z]:)\s+Total:\s*(?<total>[0-9]+(?:[\.,][0-9]+)?)\s*MB,\s*Free:\s*(?<free>[0-9]+(?:[\.,][0-9]+)?)\s*MB(?:,\s*Type:\s*(?<type>.+?))?\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex DiskRegex();
 
     [GeneratedRegex(@"^(?<ip>\d{1,3}(?:\.\d{1,3}){3})\s+(?<user>.*?)\s+(?<active>\S+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
