@@ -21,14 +21,17 @@ internal static class Program
   vm.SelectedDetailSection=vm.DetailSections.Single(s=>s.Title=="Local account details");
   Directory.CreateDirectory("artifacts/ui-smoke");
   foreach(var width in new[]{1000d,1600d}){
-   window.Width=width;window.Height=900;Pump(window);
+   // Hosted runners have a 1024px desktop. Measure the actual root at each
+   // target size so both responsive modes are exercised independently of it.
+   var root=(FrameworkElement)window.Content;
+   root.Width=width-40;root.Height=840;window.Width=width;window.Height=900;Pump(window);
    var inspector=(Border)window.FindName("InspectorPanel");
    Check(inspector.ActualWidth>250&&inspector.ActualHeight>180,"Inspector usable size");
    Check(((DataGrid)window.FindName("DetailGrid")).ActualHeight>=70,"Visible detail table");
    var workspace=(Grid)window.FindName("Workspace");
    Console.WriteLine($"Layout: requested={width}, workspace={workspace.ActualWidth}, inspector row={Grid.GetRow(inspector)}");
-   Check(Grid.GetRow(inspector)==(workspace.ActualWidth-228<980?2:0),"Responsive inspector placement");
-   var bitmap=new RenderTargetBitmap((int)window.ActualWidth,(int)window.ActualHeight,96,96,PixelFormats.Pbgra32);bitmap.Render(window);
+   Check(Grid.GetRow(inspector)==(width==1000?2:0),"Responsive inspector placement");
+   var bitmap=new RenderTargetBitmap((int)root.ActualWidth,(int)root.ActualHeight,96,96,PixelFormats.Pbgra32);bitmap.Render(root);
    var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var output=File.Create($"artifacts/ui-smoke/{width}.png");encoder.Save(output);
   }
   vm.ShowFilters=false;vm.Accent="Violet";vm.TileMinimumWidth=360;Pump(window);
