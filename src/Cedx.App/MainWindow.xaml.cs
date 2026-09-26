@@ -23,7 +23,7 @@ public partial class MainWindow : Window
         Width = Math.Min(_viewModel.SavedWindowWidth, SystemParameters.WorkArea.Width);
         Height = Math.Min(_viewModel.SavedWindowHeight, SystemParameters.WorkArea.Height);
         if (loadAssets) Loaded += MainWindow_Loaded;
-        SizeChanged += (_, _) => ArrangeInspector();
+        Workspace.SizeChanged += (_, _) => ArrangeInspector();
         _viewModel.PropertyChanged += (_, e) => {
             if (e.PropertyName == nameof(MainViewModel.ShowFilters) || e.PropertyName == nameof(MainViewModel.SavedDetailsWidth)) ArrangeInspector(true);
             if (e.PropertyName == nameof(MainViewModel.Accent)) ApplyAccent();

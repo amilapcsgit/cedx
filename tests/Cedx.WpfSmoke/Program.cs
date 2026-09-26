@@ -23,7 +23,9 @@ internal static class Program
    window.Width=width;window.Height=900;Pump(window);
    var inspector=(Border)window.FindName("InspectorPanel");
    Check(inspector.ActualWidth>250&&inspector.ActualHeight>180,"Inspector usable size");
-   Check(Grid.GetRow(inspector)==(width<1300?2:0),"Responsive inspector placement");
+   var workspace=(Grid)window.FindName("Workspace");
+   Console.WriteLine($"Layout: requested={width}, workspace={workspace.ActualWidth}, inspector row={Grid.GetRow(inspector)}");
+   Check(Grid.GetRow(inspector)==(workspace.ActualWidth-228<980?2:0),"Responsive inspector placement");
    var bitmap=new RenderTargetBitmap((int)window.ActualWidth,(int)window.ActualHeight,96,96,PixelFormats.Pbgra32);bitmap.Render(window);
    var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var output=File.Create($"artifacts/ui-smoke/{width}.png");encoder.Save(output);
   }

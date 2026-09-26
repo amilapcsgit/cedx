@@ -86,9 +86,9 @@ public sealed partial class MainViewModel : ObservableObject
 
         RefreshCommand = new AsyncRelayCommand(_ => RefreshAsync(), _ => !IsNetworkScanBusy);
         ScanNetworkCommand = new AsyncRelayCommand(_ => ScanNetworkStatusAsync(), _ => Assets.Count > 0 && !IsBusy && !IsNetworkScanBusy);
-        ExportCsvCommand = new RelayCommand(_ => ExportFilteredCsv(), _ => Assets.Count > 0);
-        ExportSoftwareCsvCommand = new RelayCommand(_ => ExportInstalledProgramsCsv(), _ => Assets.Count > 0);
-        OpenAssetsFolderCommand = new RelayCommand(_ => OpenAssetsFolder());
+        ExportCsvCommand = new RelayCommand(_ => ExecuteFileAction(ExportFilteredCsv), _ => Assets.Count > 0);
+        ExportSoftwareCsvCommand = new RelayCommand(_ => ExecuteFileAction(ExportInstalledProgramsCsv), _ => Assets.Count > 0);
+        OpenAssetsFolderCommand = new RelayCommand(_ => ExecuteFileAction(OpenAssetsFolder));
         CopyTextCommand = new RelayCommand(parameter => CopyText(parameter as string));
         LaunchAnyDeskCommand = new RelayCommand(parameter => LaunchAnyDesk(parameter as string), parameter => CanLaunchAnyDesk(parameter as string));
         ConnectSelectedAnyDeskCommand = new RelayCommand(_ => LaunchAnyDesk(SelectedAsset?.AnyDeskId), _ => CanLaunchAnyDesk(SelectedAsset?.AnyDeskId));
@@ -242,7 +242,7 @@ public sealed partial class MainViewModel : ObservableObject
         get => _minRamFilterGb;
         set
         {
-            if (SetProperty(ref _minRamFilterGb, Math.Max(0d, value)))
+            if (SetProperty(ref _minRamFilterGb, value))
             {
                 ApplyFilters();
             }
@@ -254,7 +254,7 @@ public sealed partial class MainViewModel : ObservableObject
         get => _maxRamFilterGb;
         set
         {
-            if (SetProperty(ref _maxRamFilterGb, Math.Max(0d, value)))
+            if (SetProperty(ref _maxRamFilterGb, value))
             {
                 ApplyFilters();
             }
@@ -266,7 +266,7 @@ public sealed partial class MainViewModel : ObservableObject
         get => _minStorageFilterGb;
         set
         {
-            if (SetProperty(ref _minStorageFilterGb, Math.Max(0d, value)))
+            if (SetProperty(ref _minStorageFilterGb, value))
             {
                 ApplyFilters();
             }
@@ -278,7 +278,7 @@ public sealed partial class MainViewModel : ObservableObject
         get => _maxStorageFilterGb;
         set
         {
-            if (SetProperty(ref _maxStorageFilterGb, Math.Max(0d, value)))
+            if (SetProperty(ref _maxStorageFilterGb, value))
             {
                 ApplyFilters();
             }
@@ -850,6 +850,12 @@ public sealed partial class MainViewModel : ObservableObject
             .ToArray();
 
         return groups.Length == 0 ? "no data" : string.Join(" | ", groups);
+    }
+
+    private void ExecuteFileAction(Action action)
+    {
+        try { action(); }
+        catch (Exception ex) { StatusMessage = "File operation failed: " + ex.Message; }
     }
 
     private void OpenAssetsFolder()
