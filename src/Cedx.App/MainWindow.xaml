@@ -1,4 +1,4 @@
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:common="clr-namespace:Cedx.App.Common" x:Class="Cedx.App.MainWindow" Title="CEDX Asset Manager | cedxadnacedexe" Width="1540" Height="920" MinWidth="900" MinHeight="620" Background="#080D15">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:common="clr-namespace:Cedx.App.Common" x:Class="Cedx.App.MainWindow" Title="CEDX Asset Manager | cedxadnacedexe" Width="1540" Height="920" MinWidth="900" MinHeight="740" Background="#080D15">
   <Window.Resources>
     <BooleanToVisibilityConverter x:Key="BoolVisibility"/>
     <common:TileWidthConverter x:Key="TileWidth"/>
@@ -147,7 +147,7 @@
               <TextBox Text="{Binding MinStorageFilterGb, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" ToolTip="Minimum"/>
               <TextBox Grid.Column="2" Text="{Binding MaxStorageFilterGb, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" ToolTip="Maximum"/>
             </Grid>
-            <CheckBox Content="Include missing measurements" IsChecked="{Binding IncludeUnknownMeasurements}" Margin="0,8,0,0"/>
+            <CheckBox Content="Include unknown RAM / disk" IsChecked="{Binding IncludeUnknownMeasurements}" Margin="0,8,0,0"/>
             <CheckBox Content="Low C: free space" IsChecked="{Binding LowStorageOnly}" Margin="0,8,0,0"/>
             <CheckBox Content="Has AnyDesk ID" IsChecked="{Binding HasAnyDeskOnly}" Margin="0,8,0,0"/>
             <CheckBox Content="BitLocker protection off" IsChecked="{Binding HasBitLockerOffOnly}" Margin="0,8,0,0"/>
@@ -290,8 +290,8 @@
           <StackPanel>
             <TextBlock Text="ASSET INSPECTOR" FontFamily="Consolas" Foreground="{DynamicResource AccentBrush}"/>
             <TextBlock Text="{Binding SelectedAsset.Hostname,TargetNullValue=Select an asset}" FontSize="23" FontWeight="Bold" TextTrimming="CharacterEllipsis" Margin="0,4"/>
-            <TextBlock Text="{Binding SelectedAsset.WindowsAccount}" Foreground="{StaticResource SubtleTextBrush}" TextTrimming="CharacterEllipsis"/>
-            <TextBlock Text="{Binding DetailSummary}" Foreground="{StaticResource SubtleTextBrush}" Margin="0,4"/>
+            <TextBlock x:Name="InspectorAccount" Text="{Binding SelectedAsset.WindowsAccount}" Foreground="{StaticResource SubtleTextBrush}" TextTrimming="CharacterEllipsis"/>
+            <TextBlock x:Name="InspectorSummary" Text="{Binding DetailSummary}" Foreground="{StaticResource SubtleTextBrush}" Margin="0,4"/>
           </StackPanel>
           <WrapPanel Grid.Row="1" Margin="0,6,0,4">
             <Button Content="AnyDesk" Command="{Binding ConnectSelectedAnyDeskCommand}" Style="{StaticResource Primary}"/>

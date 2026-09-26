@@ -18,11 +18,13 @@ internal static class Program
   vm.SearchText="LAB-03";Pump(window);Check(vm.FilteredCount==1&&vm.SelectedAsset?.Hostname=="LAB-03","Filtered selection");
   vm.SearchText="nonexistent";Pump(window);Check(vm.FilteredCount==0&&vm.SelectedAsset==null&&vm.DetailRows.Count==0,"Empty selection");
   vm.SearchText="";vm.DetailCategory="Security";Pump(window);Check(vm.DetailSections.Any(s=>s.Title=="Local account details"),"Details navigation");
+  vm.SelectedDetailSection=vm.DetailSections.Single(s=>s.Title=="Local account details");
   Directory.CreateDirectory("artifacts/ui-smoke");
   foreach(var width in new[]{1000d,1600d}){
    window.Width=width;window.Height=900;Pump(window);
    var inspector=(Border)window.FindName("InspectorPanel");
    Check(inspector.ActualWidth>250&&inspector.ActualHeight>180,"Inspector usable size");
+   Check(((DataGrid)window.FindName("DetailGrid")).ActualHeight>=70,"Visible detail table");
    var workspace=(Grid)window.FindName("Workspace");
    Console.WriteLine($"Layout: requested={width}, workspace={workspace.ActualWidth}, inspector row={Grid.GetRow(inspector)}");
    Check(Grid.GetRow(inspector)==(workspace.ActualWidth-228<980?2:0),"Responsive inspector placement");

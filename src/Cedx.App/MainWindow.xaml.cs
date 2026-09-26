@@ -50,9 +50,11 @@ public partial class MainWindow : Window
         var side = Workspace.ActualWidth - (_viewModel.ShowFilters ? 228 : 0) >= 980;
         if (!force && _sideInspector == side) return;
         _sideInspector = side;
+        InspectorAccount.Visibility = side ? Visibility.Visible : Visibility.Collapsed;
+        InspectorSummary.Visibility = side ? Visibility.Visible : Visibility.Collapsed;
         InspectorColumn.Width = new GridLength(side ? Math.Min(_viewModel.SavedDetailsWidth, (Workspace.ActualWidth - FilterColumn.ActualWidth) * .52) : 0);
         InspectorGapColumn.Width = new GridLength(side ? 8 : 0);
-        InspectorRow.Height = new GridLength(side ? 0 : Math.Min(_viewModel.SavedDetailsHeight, Math.Max(200, Workspace.ActualHeight * .52)));
+        InspectorRow.Height = new GridLength(side ? 0 : Math.Min(_viewModel.SavedDetailsHeight, Math.Max(300, Workspace.ActualHeight * .70)));
         InspectorGapRow.Height = new GridLength(side ? 0 : 8);
         System.Windows.Controls.Grid.SetColumn(InspectorPanel, side ? 4 : 2);
         System.Windows.Controls.Grid.SetRow(InspectorPanel, side ? 0 : 2);

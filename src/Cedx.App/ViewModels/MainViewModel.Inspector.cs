@@ -51,7 +51,7 @@ public sealed partial class MainViewModel
     public string RawDetail=>Display(SelectedDetailSection?.RawContent ?? "");
     public string RawAsset=>Display(SelectedAsset?.RawContent ?? "");
     public double SavedDetailsWidth {get;set;}=520;
-    public double SavedDetailsHeight {get;set;}=320;
+    public double SavedDetailsHeight {get;set;}=420;
     public double SavedWindowWidth {get;set;}=1540;
     public double SavedWindowHeight {get;set;}=920;
 
@@ -68,7 +68,7 @@ public sealed partial class MainViewModel
         },_=>SelectedAsset is not null);
         CopyDetailRowsCommand=new RelayCommand(_=>CopyText(string.Join(Environment.NewLine,DetailRows.Select(r=>$"{r.Record}\t{r.Field}\t{r.Value}"))),_=>DetailRows.Count>0);
         ExportDetailRowsCommand=new RelayCommand(_=>ExportDetailRows(),_=>DetailRows.Count>0);
-        ResetLayoutCommand=new RelayCommand(_=>{TileMinimumWidth=280;ShowFilters=true;Accent="Ion cyan";SavedDetailsWidth=520;SavedDetailsHeight=320;OnPropertyChanged(nameof(SavedDetailsWidth));});
+        ResetLayoutCommand=new RelayCommand(_=>{TileMinimumWidth=280;ShowFilters=true;Accent="Ion cyan";SavedDetailsWidth=520;SavedDetailsHeight=420;OnPropertyChanged(nameof(SavedDetailsWidth));});
         try{
             if(File.Exists(PreferencesPath)){
                 var p=JsonSerializer.Deserialize<WorkspacePreferences>(File.ReadAllText(PreferencesPath));
