@@ -9,13 +9,13 @@ public static class AssetFolderLocator
             var current = new DirectoryInfo(startDirectory);
             while (current is not null)
             {
-                var assets = Path.Combine(current.FullName, "assets");
+                var assets = Path.Combine(current.FullName, "Database");
                 if (Directory.Exists(assets))
                 {
                     return assets;
                 }
 
-                var database = Path.Combine(current.FullName, "Database");
+                var database = Path.Combine(current.FullName, "assets");
                 if (Directory.Exists(database))
                 {
                     return database;
@@ -26,6 +26,7 @@ public static class AssetFolderLocator
         }
 
         var fallbackRoot = startDirectories.FirstOrDefault(directory => !string.IsNullOrWhiteSpace(directory)) ?? Environment.CurrentDirectory;
-        return Path.Combine(fallbackRoot, "assets");
+        return Path.Combine(fallbackRoot, "Database");
     }
 }
+

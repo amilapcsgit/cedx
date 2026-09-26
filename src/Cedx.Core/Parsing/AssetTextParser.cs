@@ -111,6 +111,8 @@ public sealed partial class AssetTextParser : IAssetParser
         }
 
         record.ParseWarnings = warnings;
+        record.DetailSections = AssetDetails.Build(record, content);
+        record.SearchIndex = AssetDetails.RedactKeys(string.Join('\n', record.DetailSections.SelectMany(s => s.Rows).Select(r => r.Value)) + "\n" + record.SourceFileName);
         return record;
     }
 

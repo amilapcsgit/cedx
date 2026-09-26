@@ -2,12 +2,22 @@ using System.Globalization;
 
 namespace Cedx.Core.Models;
 
-public sealed class AssetRecord
+public sealed class AssetRecord : System.ComponentModel.INotifyPropertyChanged
 {
     public string SourceFilePath { get; set; } = string.Empty;
     public string SourceFileName { get; set; } = string.Empty;
     public DateTimeOffset LastModified { get; set; }
     public string RawContent { get; set; } = string.Empty;
+    public IReadOnlyList<AssetDetailSection> DetailSections { get; set; } = [];
+    public string SearchIndex { get; set; } = string.Empty;
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    private double _lowStorageThresholdGb = 10;
+    public double LowStorageThresholdGb { get => _lowStorageThresholdGb; set {
+        if (_lowStorageThresholdGb == value) return;
+        _lowStorageThresholdGb = value;
+        foreach (var name in new[]{nameof(LowStorageThresholdGb), nameof(HasLowStorage), nameof(StorageHealthDisplay)})
+            PropertyChanged?.Invoke(this, new(name));
+    }}
 
     public SystemInfo System { get; set; } = new();
     public NetworkInfo Network { get; set; } = new();
@@ -23,7 +33,11 @@ public sealed class AssetRecord
     public IReadOnlyList<string> ParseWarnings { get; set; } = [];
 
     public string WinRmCommand { get; set; } = string.Empty;
-    public ScanStatus OnlineStatus { get; set; } = ScanStatus.Unknown;
+    private ScanStatus _onlineStatus = ScanStatus.Unknown;
+    public ScanStatus OnlineStatus { get => _onlineStatus; set {
+        if (_onlineStatus == value) return;
+        _onlineStatus = value; PropertyChanged?.Invoke(this, new(nameof(OnlineStatus)));
+    }}
 
     public string Hostname => System.Hostname;
     public string IpAddress => Network.IpAddress;
@@ -48,7 +62,7 @@ public sealed class AssetRecord
     public string AnyDeskActionText => HasAnyDesk ? $"Connect {AnyDeskId}" : "No AnyDesk";
     public string RemoteAccessStatus => HasAnyDesk ? "Ready" : "No ID";
     public string CDriveTileDisplay => CDriveFreeGb is double value ? value.ToString("0.#", CultureInfo.InvariantCulture) + " GB" : "N/A";
-    public string StorageHealthDisplay => HasLowStorage ? "Low C:" : "Storage OK";
+    public string StorageHealthDisplay => CDriveFreeGb is null ? "C: not reported" : HasLowStorage ? "Low C:" : "Storage OK";
     public string LocalDiskSummary => LocalDisks.Count == 0
         ? "No local disk data"
         : string.Join("; ", LocalDisks.Select(d => string.IsNullOrWhiteSpace(d.DriveLetter)
@@ -124,8 +138,8 @@ public sealed class AssetRecord
         }
     }
 
-    public bool HasAnyDesk => !string.IsNullOrWhiteSpace(AnyDeskId) && !AnyDeskId.Equals("N/A", StringComparison.OrdinalIgnoreCase) && !AnyDeskId.Equals("Not Found", StringComparison.OrdinalIgnoreCase);
-    public bool HasLowStorage => CDriveFreeGb is double freeGb && freeGb < 10d;
+    public bool HasAnyDesk => !string.IsNullOrWhiteSpace(AnyDeskId) && AnyDeskId.All(c => char.IsAsciiDigit(c));
+    public bool HasLowStorage => CDriveFreeGb is double freeGb && freeGb < LowStorageThresholdGb;
     public bool HasStoredCredentials => StoredCredentials.Count > 0;
     public bool HasBitLockerOff => BitLockerStatus.Any(v => v.Protection.IndexOf("Off", StringComparison.OrdinalIgnoreCase) >= 0 || v.Raw.IndexOf("Protection: Off", StringComparison.OrdinalIgnoreCase) >= 0);
 }

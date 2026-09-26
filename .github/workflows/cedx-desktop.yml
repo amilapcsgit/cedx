@@ -1,0 +1,28 @@
+name: CEDX desktop validation
+on:
+  push:
+    branches: [cedxadnacedexe]
+  pull_request:
+    paths: ['src/**', 'tests/**', 'Build-and-Run-CEDX.bat', '.github/workflows/cedx-desktop.yml']
+  workflow_dispatch:
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet run --project tests/Cedx.Tests -c Release
+      - name: Build the desktop package using the same user launcher
+        shell: cmd
+        run: Build-and-Run-CEDX.bat --build-only
+      - name: Exercise WPF layout and filtering
+        run: dotnet run --project tests/Cedx.WpfSmoke -c Release
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cedx-desktop-validation
+          path: |
+            artifacts/build.log
+            artifacts/ui-smoke/

@@ -1,3 +1,7 @@
+# CEDX advanced desktop branch
+
+Double-click **Build-and-Run-CEDX.bat** to compile and launch the Windows application. See [advanced desktop usage](ADVANCED-DESKTOP.md) for requirements, features and validation.
+
 # CEDX Asset Manager
 
 Windows-native IT asset inventory console for local `.txt` scan files. The current WPF branch is focused on the Head of IT call workflow: quickly identify the caller's PC/user and connect through AnyDesk.
@@ -76,3 +80,4 @@ The current WPF slice includes:
 - AnyDesk URI launch.
 
 The previous Python/Streamlit files are intentionally preserved until the native app fully replaces them.
+

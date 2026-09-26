@@ -14,7 +14,7 @@ using Microsoft.Win32;
 
 namespace Cedx.App.ViewModels;
 
-public sealed class MainViewModel : ObservableObject
+public sealed partial class MainViewModel : ObservableObject
 {
     private readonly IAssetRepository _repository;
     private CancellationTokenSource? _loadCts;
@@ -57,6 +57,7 @@ public sealed class MainViewModel : ObservableObject
     private string _statusDistributionText = "Status: no data";
     private string _storageHealthText = "Storage: no data";
 
+    private bool _updatingAssets;
     private const string AllFilter = "All";
 
     public MainViewModel(IAssetRepository repository)
@@ -83,7 +84,7 @@ public sealed class MainViewModel : ObservableObject
         ScanTypeOptions.Add("Quick Scan");
         ScanTypeOptions.Add("Full Scan");
 
-        RefreshCommand = new AsyncRelayCommand(_ => RefreshAsync());
+        RefreshCommand = new AsyncRelayCommand(_ => RefreshAsync(), _ => !IsNetworkScanBusy);
         ScanNetworkCommand = new AsyncRelayCommand(_ => ScanNetworkStatusAsync(), _ => Assets.Count > 0 && !IsBusy && !IsNetworkScanBusy);
         ExportCsvCommand = new RelayCommand(_ => ExportFilteredCsv(), _ => Assets.Count > 0);
         ExportSoftwareCsvCommand = new RelayCommand(_ => ExportInstalledProgramsCsv(), _ => Assets.Count > 0);
@@ -93,6 +94,7 @@ public sealed class MainViewModel : ObservableObject
         ConnectSelectedAnyDeskCommand = new RelayCommand(_ => LaunchAnyDesk(SelectedAsset?.AnyDeskId), _ => CanLaunchAnyDesk(SelectedAsset?.AnyDeskId));
         ClearSearchCommand = new RelayCommand(_ => SearchText = string.Empty, _ => !string.IsNullOrWhiteSpace(SearchText));
         ResetFiltersCommand = new RelayCommand(_ => ResetFilters());
+        InitializeInspector();
     }
 
     public ObservableCollection<AssetRecord> Assets { get; } = [];
@@ -121,6 +123,7 @@ public sealed class MainViewModel : ObservableObject
             if (SetProperty(ref _selectedAsset, value))
             {
                 ConnectSelectedAnyDeskCommand.RaiseCanExecuteChanged();
+                OnSelectedAssetChanged();
             }
         }
     }
@@ -314,6 +317,7 @@ public sealed class MainViewModel : ObservableObject
             if (SetProperty(ref _isNetworkScanBusy, value))
             {
                 ScanNetworkCommand.RaiseCanExecuteChanged();
+                RefreshCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -452,21 +456,25 @@ public sealed class MainViewModel : ObservableObject
         var cancellationToken = _loadCts.Token;
 
         IsBusy = true;
+        var selectedPath = SelectedAsset?.SourceFilePath;
         StatusMessage = "Loading assets";
         try
         {
             var records = await Task.Run(async () => await _repository.LoadAsync(AssetsFolderPath, cancellationToken).ConfigureAwait(false), cancellationToken)
                 .ConfigureAwait(true);
 
-            Assets.Clear();
-            foreach (var record in records)
+            if (cancellationToken.IsCancellationRequested) return;
+            _updatingAssets = true;
+            using (AssetsView.DeferRefresh())
             {
-                Assets.Add(record);
+                Assets.Clear();
+                foreach (var record in records) Assets.Add(record);
             }
 
+            _updatingAssets = false;
             RebuildFilterOptions();
-            SetRangeDefaultsFromAssets();
-            SelectedAsset = Assets.FirstOrDefault();
+            if (!_rangesInitialized) { SetRangeDefaultsFromAssets(); _rangesInitialized = true; }
+            SelectedAsset = Assets.FirstOrDefault(a => a.SourceFilePath == selectedPath);
             LastRefreshText = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
             StatusMessage = $"Loaded {Assets.Count} assets";
             ApplyFilters();
@@ -484,13 +492,14 @@ public sealed class MainViewModel : ObservableObject
         }
         finally
         {
+            _updatingAssets = false;
             IsBusy = false;
         }
     }
 
     private async Task ScanNetworkStatusAsync()
     {
-        var assetsToScan = Assets.Where(asset => !string.IsNullOrWhiteSpace(asset.IpAddress)).ToArray();
+        var assetsToScan = AssetsView.Cast<AssetRecord>().Where(asset => System.Net.IPAddress.TryParse(asset.IpAddress, out _)).ToArray();
         if (assetsToScan.Length == 0)
         {
             StatusMessage = "No IP addresses to scan";
@@ -514,10 +523,10 @@ public sealed class MainViewModel : ObservableObject
             using var semaphore = new SemaphoreSlim(12);
             var tasks = assetsToScan.Select(async asset =>
             {
-                await semaphore.WaitAsync().ConfigureAwait(false);
+                await semaphore.WaitAsync().ConfigureAwait(true);
                 try
                 {
-                    var result = await RunNmapScanAsync(asset.IpAddress).ConfigureAwait(false);
+                    var result = await RunNmapScanAsync(asset.IpAddress).ConfigureAwait(true);
                     asset.OnlineStatus = result.Status;
                     asset.Network.NmapScanOutput = result.Output;
                     asset.Network.NmapLastScanned = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
@@ -547,16 +556,17 @@ public sealed class MainViewModel : ObservableObject
         finally
         {
             IsNetworkScanBusy = false;
-            AssetsView.Refresh();
+            ApplyFilters();
+            RefreshInspector();
             OnPropertyChanged(nameof(SelectedAsset));
-            UpdateCounts();
         }
     }
 
     private async Task<NetworkScanResult> RunNmapScanAsync(string ipAddress)
     {
+        if (!System.Net.IPAddress.TryParse(ipAddress, out _)) return new NetworkScanResult(ScanStatus.Error, "Invalid IP address.");
         var arguments = SelectedNmapScanType.Equals("Full Scan", StringComparison.OrdinalIgnoreCase)
-            ? $"-T4 -A -v -Pn {ipAddress}"
+            ? $"-T4 -A -v {ipAddress}"
             : $"-sn -T4 {ipAddress}";
 
         using var process = new Process
@@ -595,7 +605,7 @@ public sealed class MainViewModel : ObservableObject
         var error = await errorTask.ConfigureAwait(false);
         var rawOutput = BuildNmapOutput(output, error);
 
-        if (process.ExitCode != 0 && string.IsNullOrWhiteSpace(output))
+        if (process.ExitCode != 0)
         {
             return new NetworkScanResult(ScanStatus.Error, rawOutput);
         }
@@ -612,7 +622,7 @@ public sealed class MainViewModel : ObservableObject
             return new NetworkScanResult(ScanStatus.Offline, rawOutput);
         }
 
-        return new NetworkScanResult(ScanStatus.Offline, rawOutput);
+        return new NetworkScanResult(ScanStatus.Unknown, rawOutput);
     }
 
     private static string BuildNmapOutput(string output, string error)
@@ -660,106 +670,20 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    private bool FilterAsset(object item)
+    private bool FilterAsset(object item) => item is AssetRecord asset && CurrentQuery().Matches(asset);
+
+    private AssetQuery CurrentQuery() => new()
     {
-        if (item is not AssetRecord asset)
-        {
-            return false;
-        }
-
-        if (!IsAll(SelectedOsFilter) && NormalizeOs(asset.OsVersion) != SelectedOsFilter)
-        {
-            return false;
-        }
-
-        if (!IsAll(SelectedManufacturerFilter) && !asset.Manufacturer.Equals(SelectedManufacturerFilter, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (!IsAll(SelectedStatusFilter) && !asset.OnlineStatus.ToString().Equals(SelectedStatusFilter, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (LowStorageOnly && (asset.CDriveFreeGb is not double freeGb || freeGb >= LowStorageThresholdGb))
-        {
-            return false;
-        }
-
-        if (asset.RamGb is double ramGb && (ramGb < MinRamFilterGb || ramGb > MaxRamFilterGb))
-        {
-            return false;
-        }
-
-        if (asset.CDriveFreeGb is double cFreeGb && (cFreeGb < MinStorageFilterGb || cFreeGb > MaxStorageFilterGb))
-        {
-            return false;
-        }
-
-        var anyDeskQuery = AnyDeskFilter.Trim();
-        if (anyDeskQuery.Length > 0 && !Contains(asset.AnyDeskId, anyDeskQuery))
-        {
-            return false;
-        }
-
-        if (HasAnyDeskOnly && !asset.HasAnyDesk)
-        {
-            return false;
-        }
-
-        if (HasBitLockerOffOnly && !asset.HasBitLockerOff)
-        {
-            return false;
-        }
-
-        if (HasStoredCredentialsOnly && !asset.HasStoredCredentials)
-        {
-            return false;
-        }
-
-        var query = SearchText.Trim();
-        return query.Length == 0 || MatchesSearch(asset, query);
-    }
-
-    private static bool MatchesSearch(AssetRecord asset, string query)
-    {
-        return Contains(asset.Hostname, query) ||
-               Contains(asset.IpAddress, query) ||
-               Contains(asset.MacAddress, query) ||
-               Contains(asset.PcDomain, query) ||
-               Contains(asset.WindowsAccount, query) ||
-               Contains(asset.WindowsUserDisplay, query) ||
-               Contains(asset.AnyDeskId, query) ||
-               Contains(asset.OsVersion, query) ||
-               Contains(asset.System.UserEmails, query) ||
-               Contains(asset.Manufacturer, query) ||
-               Contains(asset.Model, query) ||
-               Contains(asset.SerialNumber, query) ||
-               Contains(asset.Cpu, query) ||
-               Contains(asset.Gpu, query) ||
-               Contains(asset.Antivirus, query) ||
-               Contains(asset.OfficeVersion, query) ||
-               Contains(asset.Software.AdobeAutodesk, query) ||
-               Contains(asset.Software.LocalUsers, query) ||
-               Contains(asset.Network.NmapScanOutput, query) ||
-               Contains(asset.SourceFileName, query) ||
-               asset.SharedFolders.Any(folder => Contains(folder, query)) ||
-               asset.StoredCredentials.Any(entry => Contains(entry.Target, query) || Contains(entry.User, query) || Contains(entry.Raw, query)) ||
-               asset.SmbCredentials.Any(entry => Contains(entry.NasIp, query) || Contains(entry.StoredUser, query) || Contains(entry.ActiveConnection, query) || Contains(entry.Raw, query)) ||
-               asset.BitLockerStatus.Any(volume => Contains(volume.Volume, query) || Contains(volume.Protection, query) || Contains(volume.Encryption, query) || Contains(volume.Raw, query)) ||
-               asset.LocalDisks.Any(disk => Contains(disk.DriveLetter, query) || Contains(disk.DriveType, query) || Contains(disk.Raw, query)) ||
-               asset.Software.InstalledPrinters.Any(printer => Contains(printer.Name, query)) ||
-               asset.Software.InstalledPrograms.Any(program => Contains(program, query));
-    }
-
-    private static bool Contains(string? value, string query)
-    {
-        return value?.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
-    }
+        Search=SearchText, Os=SelectedOsFilter, Manufacturer=SelectedManufacturerFilter, Status=SelectedStatusFilter,
+        AnyDesk=AnyDeskFilter, MinRam=MinRamFilterGb, MaxRam=MaxRamFilterGb, MinFree=MinStorageFilterGb, MaxFree=MaxStorageFilterGb,
+        LowThreshold=LowStorageThresholdGb, IncludeUnknown=IncludeUnknownMeasurements, LowOnly=LowStorageOnly,
+        AnyDeskOnly=HasAnyDeskOnly, BitLockerOffOnly=HasBitLockerOffOnly, CredentialsOnly=HasStoredCredentialsOnly
+    };
 
     private void ApplyFilters()
     {
+        foreach(var asset in Assets) asset.LowStorageThresholdGb = LowStorageThresholdGb;
+        FilterValidation=CurrentQuery().Validation;
         AssetsView.Refresh();
         UpdateCounts();
         EnsureVisibleSelection();
@@ -779,6 +703,7 @@ public sealed class MainViewModel : ObservableObject
 
     private void UpdateCounts()
     {
+        if (_updatingAssets) return;
         var visibleAssets = AssetsView.Cast<AssetRecord>().ToArray();
         LoadedCount = Assets.Count;
         FilteredCount = visibleAssets.Length;
@@ -883,6 +808,8 @@ public sealed class MainViewModel : ObservableObject
     private void ResetFilters()
     {
         _searchText = string.Empty;
+        _includeUnknownMeasurements = true;
+        OnPropertyChanged(nameof(IncludeUnknownMeasurements));
         _anyDeskFilter = string.Empty;
         _selectedOsFilter = AllFilter;
         _selectedManufacturerFilter = AllFilter;
@@ -1041,8 +968,8 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        Clipboard.SetText(text);
-        StatusMessage = "Copied";
+        try { Clipboard.SetText(text); StatusMessage = "Copied"; }
+        catch (Exception ex) { StatusMessage = "Clipboard unavailable: " + ex.Message; }
     }
 
     private void LaunchAnyDesk(string? anyDeskId)
@@ -1052,17 +979,12 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        Process.Start(new ProcessStartInfo
-        {
-            FileName = "anydesk:" + anyDeskId,
-            UseShellExecute = true
-        });
+        try { Process.Start(new ProcessStartInfo { FileName = "anydesk:" + anyDeskId, UseShellExecute = true }); }
+        catch (Exception ex) { StatusMessage = "AnyDesk launch failed: " + ex.Message; }
     }
 
     private static bool CanLaunchAnyDesk(string? anyDeskId)
     {
-        return !string.IsNullOrWhiteSpace(anyDeskId) &&
-               !anyDeskId.Equals("N/A", StringComparison.OrdinalIgnoreCase) &&
-               !anyDeskId.Equals("Not Found", StringComparison.OrdinalIgnoreCase);
+        return !string.IsNullOrWhiteSpace(anyDeskId) && anyDeskId.All(char.IsAsciiDigit);
     }
 }

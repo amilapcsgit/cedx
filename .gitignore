@@ -6,3 +6,6 @@ Database/
 *.suo
 *.nupkg
 TestResults/
+
+
+artifacts/
