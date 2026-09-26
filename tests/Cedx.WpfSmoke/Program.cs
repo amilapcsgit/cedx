@@ -9,7 +9,7 @@ using System.IO;
 internal static class Program
 {
  [STAThread] static int Main(){
-  var app=new Cedx.App.App();app.InitializeComponent();app.StartupUri=null;
+  var app=new Application();app.Resources.MergedDictionaries.Add(new ResourceDictionary{Source=new Uri("/Cedx.App;component/Themes/GraphiteTheme.xaml",UriKind.Relative)});
   var window=new Cedx.App.MainWindow(false);var vm=(MainViewModel)window.DataContext;
   var parser=new AssetTextParser();
   for(var i=0;i<18;i++)vm.Assets.Add(parser.Parse($"Hostname: LAB-{i:00}\nWindows account: LAB\\operator{i}\nIP Address: 192.0.2.{i+1}\n=== Local account details ===\nName : operator{i}\nEnabled : True",$"lab{i}.txt",DateTimeOffset.UtcNow));
