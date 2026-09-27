@@ -65,7 +65,7 @@ public sealed class InventoryDatabase
                 var record = _parser.Parse(text, path, new DateTimeOffset(File.GetLastWriteTimeUtc(path), TimeSpan.Zero));
                 outcomes.Add(new(path, Upsert(record, sample), record.ParseWarnings.Count == 0 ? record.Hostname : string.Join("; ", record.ParseWarnings)));
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException or ArgumentException or FormatException)
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or SqliteException or ArgumentException or FormatException)
             { outcomes.Add(new(path, "Error", ex.Message)); }
         }
         return new(outcomes);

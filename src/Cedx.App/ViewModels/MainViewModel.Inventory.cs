@@ -160,9 +160,9 @@ public sealed partial class MainViewModel
         _watchTimer??=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(900)};
         _watchTimer.Tick-=WatchTick;_watchTimer.Tick+=WatchTick;
         _watcher=new FileSystemWatcher(AssetsFolderPath){IncludeSubdirectories=true,NotifyFilter=NotifyFilters.FileName|NotifyFilters.LastWrite|NotifyFilters.Size};
-        FileSystemEventHandler change=(_,e)=>{if(Path.GetExtension(e.FullPath).Equals(".txt",StringComparison.OrdinalIgnoreCase))Application.Current?.Dispatcher.BeginInvoke(()=>{_watchTimer.Stop();_watchTimer.Start();});};
+        FileSystemEventHandler change=(_,e)=>{if(Path.GetExtension(e.FullPath).Equals(".txt",StringComparison.OrdinalIgnoreCase))Application.Current?.Dispatcher.InvokeAsync(()=>{_watchTimer.Stop();_watchTimer.Start();});};
         _watcher.Created+=change;_watcher.Changed+=change;_watcher.Renamed+=(_,e)=>change(_,e);
-        _watcher.Error+=(_,_)=>Application.Current?.Dispatcher.BeginInvoke(()=>StatusMessage="Folder watcher interrupted. Refresh to rescan.");
+        _watcher.Error+=(_,_)=>Application.Current?.Dispatcher.InvokeAsync(()=>StatusMessage="Folder watcher interrupted. Refresh to rescan.");
         _watcher.EnableRaisingEvents=true;
     }
     private async void WatchTick(object? sender,EventArgs e){_watchTimer?.Stop();await RefreshAsync();}
