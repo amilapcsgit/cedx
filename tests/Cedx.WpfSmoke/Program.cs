@@ -13,7 +13,7 @@ internal static class Program
  [STAThread] static int Main()
  {
   SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
-  var app=new Application();app.Resources.MergedDictionaries.Add(new ResourceDictionary{Source=new Uri("/Cedx.App;component/Themes/GraphiteTheme.xaml",UriKind.Relative)});
+  var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};app.Resources.MergedDictionaries.Add(new ResourceDictionary{Source=new Uri("/Cedx.App;component/Themes/GraphiteTheme.xaml",UriKind.Relative)});
   var temp=Path.Combine(Path.GetTempPath(),"cedx-wpf-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(temp);
   var db=new InventoryDatabase(Path.Combine(temp,"inventory.db"));
   var window=new Cedx.App.MainWindow(false,db,false);var vm=(MainViewModel)window.DataContext;
@@ -32,6 +32,7 @@ internal static class Program
   vm.SearchText="EXTRA-TEST";Pump();Check(vm.FilteredCount==1&&vm.SelectedAsset?.Hostname=="EXTRA-TEST","Search and selection");
   vm.EditCompany="Synthetic company";vm.EditPerson="Sample operator";vm.EditDepartment="Engineering";vm.EditLocation="Room 2";vm.EditTag="LAB-001";vm.SaveSelectedAsset();
   Check(vm.SelectedAsset?.IsManaged==true&&vm.SelectedAsset.Company=="Synthetic company","Promote scan to managed asset");
+  Check(vm.CreateInventoryCsv().Contains("Synthetic company,Sample operator,Engineering,Room 2,LAB-001"),"Filtered CSV includes saved assignment");
   File.AppendAllText(Path.Combine(nested,"extra.TXT"),"\n=== Update ===\nTest : New scan\n");
   Wait(vm.RefreshAsync());Check(vm.SelectedAsset?.Person=="Sample operator","Refresh preserves assignment and selection");
   vm.SearchText="does-not-exist";Check(vm.SelectedAsset==null&&vm.DetailRows.Count==0,"Empty result clears inspector");

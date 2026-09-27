@@ -886,6 +886,12 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
+        File.WriteAllText(dialog.FileName, CreateInventoryCsv(), new UTF8Encoding(true));
+        StatusMessage = "Exported visible inventory CSV";
+    }
+
+    public string CreateInventoryCsv()
+    {
         var builder = new StringBuilder();
         AppendCsvRow(builder, "Company", "Person", "Department", "Location", "Asset Tag", "Managed", "Hostname", "IP Address", "MAC Address", "Windows Account", "OS Version", "Manufacturer", "Model", "Serial Number", "CPU", "RAM GB", "C Free GB", "AnyDesk ID", "Antivirus", "BitLocker summary", "Network Mode", "Gateway", "DNS", "Online Status", "Source File");
 
@@ -915,8 +921,7 @@ public sealed partial class MainViewModel : ObservableObject
                 asset.SourceFilePath);
         }
 
-        File.WriteAllText(dialog.FileName, builder.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
-        StatusMessage = "Exported CSV";
+        return builder.ToString();
     }
 
     private void ExportInstalledProgramsCsv()
@@ -969,6 +974,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     private static string EscapeCsv(string value)
     {
+        if (value.Length > 0 && "=+-@".Contains(value[0])) value = "\'" + value;
         var escaped = value.Replace("\"", "\"\"", StringComparison.Ordinal);
         return escaped.IndexOfAny([',', '"', '\r', '\n']) >= 0 ? "\"" + escaped + "\"" : escaped;
     }
