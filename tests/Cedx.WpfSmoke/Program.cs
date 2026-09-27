@@ -12,6 +12,7 @@ internal static class Program
 {
  [STAThread] static int Main()
  {
+  SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
   var app=new Application();app.Resources.MergedDictionaries.Add(new ResourceDictionary{Source=new Uri("/Cedx.App;component/Themes/GraphiteTheme.xaml",UriKind.Relative)});
   var temp=Path.Combine(Path.GetTempPath(),"cedx-wpf-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(temp);
   var db=new InventoryDatabase(Path.Combine(temp,"inventory.db"));
