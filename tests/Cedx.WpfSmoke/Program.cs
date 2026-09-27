@@ -1,43 +1,67 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Cedx.App.ViewModels;
-using Cedx.Core.Parsing;
-using System.IO;
+using Cedx.Core.Storage;
+using System.Diagnostics;
+
 internal static class Program
 {
- [STAThread] static int Main(){
+ [STAThread] static int Main()
+ {
   var app=new Application();app.Resources.MergedDictionaries.Add(new ResourceDictionary{Source=new Uri("/Cedx.App;component/Themes/GraphiteTheme.xaml",UriKind.Relative)});
-  var window=new Cedx.App.MainWindow(false);var vm=(MainViewModel)window.DataContext;
-  var parser=new AssetTextParser();
-  for(var i=0;i<18;i++)vm.Assets.Add(parser.Parse($"Hostname: LAB-{i:00}\nWindows account: LAB\\operator{i}\nIP Address: 192.0.2.{i+1}\n=== Local account details ===\nName : operator{i}\nEnabled : True",$"lab{i}.txt",DateTimeOffset.UtcNow));
-  vm.SearchText="LAB";window.Show();Pump(window);
-  Check(vm.FilteredCount==18,"Initial count");
-  vm.SearchText="LAB-03";Pump(window);Check(vm.FilteredCount==1&&vm.SelectedAsset?.Hostname=="LAB-03","Filtered selection");
-  vm.SearchText="nonexistent";Pump(window);Check(vm.FilteredCount==0&&vm.SelectedAsset==null&&vm.DetailRows.Count==0,"Empty selection");
-  vm.SearchText="";vm.DetailCategory="Security";Pump(window);Check(vm.DetailSections.Any(s=>s.Title=="Local account details"),"Details navigation");
-  vm.SelectedDetailSection=vm.DetailSections.Single(s=>s.Title=="Local account details");
+  var temp=Path.Combine(Path.GetTempPath(),"cedx-wpf-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(temp);
+  var db=new InventoryDatabase(Path.Combine(temp,"inventory.db"));
+  var window=new Cedx.App.MainWindow(false,db,false);var vm=(MainViewModel)window.DataContext;
+  var source=Path.Combine(temp,"imports");Directory.CreateDirectory(source);
+  // Exercise the real refresh path after the selectors are attached. This is the former DeferRefresh regression.
+  var originals=Directory.GetFiles("assets","*.txt");
+  foreach(var f in originals)File.Copy(f,Path.Combine(source,Path.GetFileName(f)));
+  vm.AssetsFolderPath=source;window.Show();Wait(vm.RefreshAsync());Pump();
+  Check(vm.LoadedCount==originals.Length&&vm.FilteredCount==originals.Length,"Every repository example loads through bound UI");
+  Check(!vm.StatusMessage.StartsWith("Load failed"),"No deferred refresh exception");
+  var template=File.ReadAllText("samples/DEMO-SERVER.txt");
+  var nested=Path.Combine(source,"nested");Directory.CreateDirectory(nested);
+  File.WriteAllText(Path.Combine(nested,"extra.TXT"),template.Replace("DEMO-SERVER","EXTRA-TEST").Replace("128 GB","1024 GB"));
+  WaitUntil(()=>vm.LoadedCount==originals.Length+1,TimeSpan.FromSeconds(15));
+  Check(vm.FilteredCount==originals.Length+1,"Watcher imports nested additions including larger RAM");
+  vm.SearchText="EXTRA-TEST";Pump();Check(vm.FilteredCount==1&&vm.SelectedAsset?.Hostname=="EXTRA-TEST","Search and selection");
+  vm.EditCompany="Synthetic company";vm.EditPerson="Sample operator";vm.EditDepartment="Engineering";vm.EditLocation="Room 2";vm.EditTag="LAB-001";vm.SaveSelectedAsset();
+  Check(vm.SelectedAsset?.IsManaged==true&&vm.SelectedAsset.Company=="Synthetic company","Promote scan to managed asset");
+  File.AppendAllText(Path.Combine(nested,"extra.TXT"),"\n=== Update ===\nTest : New scan\n");
+  Wait(vm.RefreshAsync());Check(vm.SelectedAsset?.Person=="Sample operator","Refresh preserves assignment and selection");
+  vm.SearchText="does-not-exist";Check(vm.SelectedAsset==null&&vm.DetailRows.Count==0,"Empty result clears inspector");
+  vm.ResetFiltersCommand.Execute(null);Check(vm.FilteredCount==originals.Length+1,"Reset reveals all assets");
+  vm.WatchFolder=false;window.Close();
+  var reopened=new InventoryDatabase(db.Path).Load();Check(reopened.Any(a=>a.Person=="Sample operator"),"Assignment persists after window closes");
+
+  // Use only synthetic data in published screenshots. Render an unshown WPF root
+  // to avoid the hosted runner's 1024px desktop clipping wide screenshots.
+  var demo=new InventoryDatabase(Path.Combine(temp,"demo.db"));demo.Import(Directory.GetFiles("samples","*.txt"),true);
+  foreach(var a in demo.Load())demo.SaveAssignment(a.AssetId,new("Demo organization","Sample operator","Engineering","Room 2","DEMO","Synthetic sample for interface preview."));
+  var preview=new Cedx.App.MainWindow(false,demo,false);var p=(MainViewModel)preview.DataContext;p.AssetsFolderPath=Path.Combine(temp,"empty");p.WatchFolder=false;Wait(p.RefreshAsync());
+  var root=(FrameworkElement)preview.Content;root.DataContext=p;
   Directory.CreateDirectory("artifacts/ui-smoke");
-  foreach(var width in new[]{1000d,1600d}){
-   // Hosted runners have a 1024px desktop. Measure the actual root at each
-   // target size so both responsive modes are exercised independently of it.
-   var root=(FrameworkElement)window.Content;
-   root.Width=width-40;root.Height=840;window.Width=width;window.Height=900;Pump(window);
-   var inspector=(Border)window.FindName("InspectorPanel");
-   Check(inspector.ActualWidth>250&&inspector.ActualHeight>180,"Inspector usable size");
-   Check(((DataGrid)window.FindName("DetailGrid")).ActualHeight>=70,"Visible detail table");
-   var workspace=(Grid)window.FindName("Workspace");
-   Console.WriteLine($"Layout: requested={width}, workspace={workspace.ActualWidth}, inspector row={Grid.GetRow(inspector)}");
-   Check(Grid.GetRow(inspector)==(width==1000?2:0),"Responsive inspector placement");
-   var bitmap=new RenderTargetBitmap((int)root.ActualWidth,(int)root.ActualHeight,96,96,PixelFormats.Pbgra32);bitmap.Render(root);
-   var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var output=File.Create($"artifacts/ui-smoke/{width}.png");encoder.Save(output);
-  }
-  vm.ShowFilters=false;vm.Accent="Violet";vm.TileMinimumWidth=360;Pump(window);
-  Check(((ColumnDefinition)window.FindName("FilterColumn")).ActualWidth==0,"Hide filters");
-  window.Close();Console.WriteLine("PASS: WPF selection, details, responsive layout, customization");return 0;
+  Layout(root,1560,930);p.ShowInspector=true;Layout(root,1560,930);
+  Check(p.FilteredCount==6,"Six sample cards");
+  Check(Grid.GetColumn((Border)preview.FindName("InspectorPanel"))==4,"Wide inspector docking");
+  Capture(root,"01-inventory");
+  p.ManageAssetCommand.Execute(null);Layout(root,1560,930);Capture(root,"02-manage-asset");
+  p.InspectorTab=2;p.DetailCategory="Security";p.SelectedDetailSection=p.DetailSections.First(s=>s.Title=="Local account details");Layout(root,1560,930);Capture(root,"03-scan-details");
+  Check(((DataGrid)preview.FindName("DetailGrid")).ActualHeight>150,"Scan detail table visible");
+  Layout(root,1040,800);Check(((Grid)preview.FindName("FleetPanel")).Visibility==Visibility.Visible,"Compact cards remain visible");
+  p.OpenAssetCommand.Execute(p.SelectedAsset);Layout(root,1040,800);Check(((Border)preview.FindName("InspectorPanel")).ActualWidth>500,"Compact inspector has usable width");Capture(root,"04-compact");
+  p.Accent="Violet";p.TileMinimumWidth=320;p.ShowInspector=false;Layout(root,1560,930);
+  Console.WriteLine("PASS: bound refresh, all example TXT files, watched folder additions, large RAM, managed assignment, persistence, empty selection and responsive WPF screens");
+  p.DisposeWorkspace();Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();Directory.Delete(temp,true);return 0;
  }
- static void Pump(Window w){w.UpdateLayout();w.Dispatcher.Invoke(()=>{},DispatcherPriority.ApplicationIdle);w.UpdateLayout();}
- static void Check(bool value,string message){if(!value)throw new Exception(message);}
+ static void Layout(FrameworkElement root,double w,double h){root.Width=w;root.Height=h;root.Measure(new Size(w,h));root.Arrange(new Rect(0,0,w,h));root.UpdateLayout();Pump();root.Measure(new Size(w,h));root.Arrange(new Rect(0,0,w,h));root.UpdateLayout();}
+ static void Capture(FrameworkElement root,string name){var bitmap=new RenderTargetBitmap((int)root.ActualWidth,(int)root.ActualHeight,96,96,PixelFormats.Pbgra32);bitmap.Render(root);var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var file=File.Create($"artifacts/ui-smoke/{name}.png");encoder.Save(file);}
+ static void Pump(){Dispatcher.CurrentDispatcher.Invoke(()=>{},DispatcherPriority.ApplicationIdle);}
+ static void Wait(Task task){WaitUntil(()=>task.IsCompleted,TimeSpan.FromSeconds(30));task.GetAwaiter().GetResult();}
+ static void WaitUntil(Func<bool> done,TimeSpan timeout){var watch=Stopwatch.StartNew();while(!done()){if(watch.Elapsed>timeout)throw new TimeoutException("UI operation timed out");Pump();Thread.Sleep(10);}Pump();}
+ static void Check(bool value,string message){if(!value)throw new Exception(message);Console.WriteLine("PASS: "+message);}
 }

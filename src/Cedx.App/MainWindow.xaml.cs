@@ -1,113 +1,75 @@
+using System.ComponentModel;
+using System.IO;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Interop;
+using System.Windows.Media;
 using Cedx.App.ViewModels;
 using Cedx.Core.Parsing;
 using Cedx.Core.Services;
+using Cedx.Core.Storage;
 
 namespace Cedx.App;
 
 public partial class MainWindow : Window
 {
     private readonly MainViewModel _viewModel;
-    private const int DwmwaUseImmersiveDarkMode = 20;
-    private const int DwmwaSystemBackdropType = 38;
-    private const int DwmSystemBackdropAcrylic = 3;
-
+    private bool? _narrow;
     public MainWindow() : this(true) { }
-
-    public MainWindow(bool loadAssets)
+    public MainWindow(bool loadAssets, InventoryDatabase? database = null, bool loadPreferences = true)
     {
         InitializeComponent();
-        _viewModel = new MainViewModel(new FileAssetRepository(new AssetTextParser()));
+        _viewModel = new MainViewModel(new FileAssetRepository(new AssetTextParser()), database, loadPreferences);
         DataContext = _viewModel;
-        Width = Math.Min(_viewModel.SavedWindowWidth, SystemParameters.WorkArea.Width);
-        Height = Math.Min(_viewModel.SavedWindowHeight, SystemParameters.WorkArea.Height);
-        if (loadAssets) Loaded += MainWindow_Loaded;
-        Workspace.SizeChanged += (_, _) => ArrangeInspector();
+        Width = Math.Max(MinWidth, Math.Min(_viewModel.SavedWindowWidth, SystemParameters.WorkArea.Width));
+        Height = Math.Max(MinHeight, Math.Min(_viewModel.SavedWindowHeight, SystemParameters.WorkArea.Height));
+        Workspace.SizeChanged += (_, _) => ArrangeWorkspace();
         _viewModel.PropertyChanged += (_, e) => {
-            if (e.PropertyName == nameof(MainViewModel.ShowFilters) || e.PropertyName == nameof(MainViewModel.SavedDetailsWidth)) ArrangeInspector(true);
+            if (e.PropertyName is nameof(MainViewModel.ShowInspector) or nameof(MainViewModel.SavedDetailsWidth)) ArrangeWorkspace(true);
             if (e.PropertyName == nameof(MainViewModel.Accent)) ApplyAccent();
         };
-        Closing += (_, _) => {
-            _viewModel.SavedWindowWidth = RestoreBounds.Width;
-            _viewModel.SavedWindowHeight = RestoreBounds.Height;
-            _viewModel.SavePreferences();
-        };
+        if (loadAssets) Loaded += async (_, _) => await _viewModel.RefreshAsync();
+        Closing += Window_Closing;
         ApplyAccent();
     }
-
-    private bool? _sideInspector;
+    private void Window_Closing(object? sender, CancelEventArgs e)
+    {
+        if (_viewModel.HasUnsavedChanges && MessageBox.Show(this,"There are unsaved asset assignments. Close and discard these edits?","Unsaved changes",MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes){e.Cancel=true;return;}
+        _viewModel.SavedWindowWidth=RestoreBounds.Width;_viewModel.SavedWindowHeight=RestoreBounds.Height;
+        _viewModel.SavePreferences();_viewModel.DisposeWorkspace();
+    }
     private void ApplyAccent()
     {
-        var hex = _viewModel.Accent switch { "Phosphor green" => "#6CFFA6", "Violet" => "#B79CFF", _ => "#42E8F5" };
-        Application.Current.Resources["AccentBrush"] = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex));
+        var hex=_viewModel.Accent switch{"Phosphor green"=>"#86E897","Violet"=>"#B69CFA",_=>"#4DE2C2"};
+        Application.Current.Resources["AccentBrush"]=new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
     }
-    private void ArrangeInspector(bool force = false)
+    private void ArrangeWorkspace(bool force=false)
     {
-        if (_viewModel is null || Workspace.ActualWidth <= 0) return;
-        FilterColumn.Width = new GridLength(_viewModel.ShowFilters ? 220 : 0);
-        Workspace.ColumnDefinitions[1].Width = new GridLength(_viewModel.ShowFilters ? 8 : 0);
-        var side = Workspace.ActualWidth - (_viewModel.ShowFilters ? 228 : 0) >= 980;
-        if (!force && _sideInspector == side) return;
-        _sideInspector = side;
-        InspectorAccount.Visibility = side ? Visibility.Visible : Visibility.Collapsed;
-        InspectorSummary.Visibility = side ? Visibility.Visible : Visibility.Collapsed;
-        InspectorColumn.Width = new GridLength(side ? Math.Min(_viewModel.SavedDetailsWidth, (Workspace.ActualWidth - FilterColumn.ActualWidth) * .52) : 0);
-        InspectorGapColumn.Width = new GridLength(side ? 8 : 0);
-        InspectorRow.Height = new GridLength(side ? 0 : Math.Min(_viewModel.SavedDetailsHeight, Math.Max(300, Workspace.ActualHeight * .70)));
-        InspectorGapRow.Height = new GridLength(side ? 0 : 8);
-        System.Windows.Controls.Grid.SetColumn(InspectorPanel, side ? 4 : 2);
-        System.Windows.Controls.Grid.SetRow(InspectorPanel, side ? 0 : 2);
-        System.Windows.Controls.Grid.SetColumn(InspectorDivider, side ? 3 : 2);
-        System.Windows.Controls.Grid.SetRow(InspectorDivider, side ? 0 : 1);
-        InspectorDivider.Width = side ? 8 : double.NaN;
-        InspectorDivider.Height = side ? double.NaN : 8;
-        InspectorDivider.HorizontalAlignment = HorizontalAlignment.Stretch;
-        InspectorDivider.VerticalAlignment = VerticalAlignment.Stretch;
-        InspectorDivider.ResizeDirection = side ? System.Windows.Controls.GridResizeDirection.Columns : System.Windows.Controls.GridResizeDirection.Rows;
+        if (_viewModel is null || Workspace.ActualWidth<=0)return;
+        var narrow=Workspace.ActualWidth<1240;
+        var changed=_narrow!=narrow;_narrow=narrow;
+        if(changed && narrow) _viewModel.ShowInspector=false;
+        var show=_viewModel.ShowInspector;
+        if(!changed&&!force)return;
+        InspectorColumn.Width=new GridLength(!narrow&&show?Math.Clamp(_viewModel.SavedDetailsWidth,390,Math.Max(390,Workspace.ActualWidth*.38)):0);
+        InspectorGapColumn.Width=new GridLength(!narrow&&show?14:0);
+        InspectorDivider.Visibility=!narrow&&show?Visibility.Visible:Visibility.Collapsed;
+        InspectorPanel.Visibility=show?Visibility.Visible:Visibility.Collapsed;
+        Grid.SetColumn(InspectorPanel,narrow?2:4);
+        FleetPanel.Visibility=narrow&&show?Visibility.Collapsed:Visibility.Visible;
     }
-    private void InspectorDivider_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
-    {
-        if (_sideInspector == true) _viewModel.SavedDetailsWidth = Math.Clamp(InspectorColumn.ActualWidth, 340, 1000);
-        else _viewModel.SavedDetailsHeight = Math.Clamp(InspectorRow.ActualHeight, 220, 700);
-    }
-
+    private void InspectorDivider_DragCompleted(object sender,DragCompletedEventArgs e)
+    {_viewModel.SavedDetailsWidth=Math.Clamp(InspectorColumn.ActualWidth,390,800);}
+    private void FindCommand_Executed(object sender,System.Windows.Input.ExecutedRoutedEventArgs e)
+    {if(_narrow==true)_viewModel.ShowInspector=false;SearchBox.Focus();SearchBox.SelectAll();}
+    private async void Window_Drop(object sender,DragEventArgs e)
+    {if(e.Data.GetData(DataFormats.FileDrop) is string[] files)await _viewModel.ImportFilesAsync(files.Where(p=>Directory.Exists(p)||Path.GetExtension(p).Equals(".txt",StringComparison.OrdinalIgnoreCase)));}
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
-        TryEnableWindowsBackdrop();
+        try{var enabled=1;DwmSetWindowAttribute(new WindowInteropHelper(this).Handle,20,ref enabled,sizeof(int));}catch(DllNotFoundException){}
     }
-
-    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
-    {
-        Loaded -= MainWindow_Loaded;
-        await _viewModel.RefreshAsync().ConfigureAwait(true);
-    }
-
-    private void FindCommand_Executed(object sender, System.Windows.Input.ExecutedRoutedEventArgs e)
-    {
-        SearchBox.Focus();
-        SearchBox.SelectAll();
-    }
-
-    private void TryEnableWindowsBackdrop()
-    {
-        try
-        {
-            var hwnd = new WindowInteropHelper(this).Handle;
-            var darkMode = 1;
-            _ = DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkMode, ref darkMode, sizeof(int));
-
-            var backdrop = DwmSystemBackdropAcrylic;
-            _ = DwmSetWindowAttribute(hwnd, DwmwaSystemBackdropType, ref backdrop, sizeof(int));
-        }
-        catch
-        {
-            // Older Windows builds simply use the XAML glass theme.
-        }
-    }
-
     [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int attributeValue, int attributeSize);
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd,int attribute,ref int value,int size);
 }
-

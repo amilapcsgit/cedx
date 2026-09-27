@@ -1,354 +1,64 @@
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:common="clr-namespace:Cedx.App.Common" x:Class="Cedx.App.MainWindow" Title="CEDX Asset Manager | cedxadnacedexe" Width="1540" Height="920" MinWidth="900" MinHeight="740" Background="#080D15">
-  <Window.Resources>
-    <BooleanToVisibilityConverter x:Key="BoolVisibility"/>
-    <common:TileWidthConverter x:Key="TileWidth"/>
-    <Style x:Key="Label" TargetType="TextBlock">
-      <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}"/>
-      <Setter Property="Margin" Value="0,12,0,5"/>
-      <Setter Property="FontSize" Value="12"/>
-    </Style>
-    <Style x:Key="Compact" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="Padding" Value="10,5"/>
-      <Setter Property="MinHeight" Value="28"/>
-      <Setter Property="Margin" Value="0,0,6,4"/>
-    </Style>
-    <Style x:Key="Primary" TargetType="Button" BasedOn="{StaticResource Compact}">
-      <Setter Property="Foreground" Value="#06121B"/>
-      <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
-      <Setter Property="FontWeight" Value="Bold"/>
-    </Style>
-    <Style TargetType="TabControl">
-      <Setter Property="Background" Value="#0C1522"/>
-      <Setter Property="BorderBrush" Value="#284457"/>
-      <Setter Property="Padding" Value="0"/>
-    </Style>
-    <Style TargetType="TabItem">
-      <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="TabItem">
-            <Border x:Name="TabBorder" Background="#142337" BorderBrush="#284457" BorderThickness="0,0,0,2" Padding="12,8">
-              <ContentPresenter ContentSource="Header"/>
-            </Border>
-            <ControlTemplate.Triggers>
-              <Trigger Property="IsSelected" Value="True">
-                <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                <Setter Property="Foreground" Value="White"/>
-              </Trigger>
-            </ControlTemplate.Triggers>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
-    <Style x:Key="TileContainer" TargetType="ListBoxItem">
-      <Setter Property="Padding" Value="0"/>
-      <Setter Property="Margin" Value="0,0,10,10"/>
-      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="ListBoxItem">
-            <Border x:Name="Frame" BorderThickness="1" BorderBrush="#30465B" CornerRadius="10" Background="{StaticResource TileGlassBrush}">
-              <ContentPresenter/>
-            </Border>
-            <ControlTemplate.Triggers>
-              <Trigger Property="IsSelected" Value="True">
-                <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                <Setter TargetName="Frame" Property="Background" Value="#17323A"/>
-              </Trigger>
-              <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource AccentBlueBrush}"/>
-              </Trigger>
-            </ControlTemplate.Triggers>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
-  </Window.Resources>
-  <Window.CommandBindings>
-    <CommandBinding Command="ApplicationCommands.Find" Executed="FindCommand_Executed"/>
-  </Window.CommandBindings>
-  <Window.InputBindings>
-    <KeyBinding Key="F" Modifiers="Control" Command="ApplicationCommands.Find"/>
-    <KeyBinding Key="F5" Command="{Binding RefreshCommand}"/>
-  </Window.InputBindings>
-  <Grid Margin="12">
-    <Grid.RowDefinitions>
-      <RowDefinition Height="Auto"/>
-      <RowDefinition Height="Auto"/>
-      <RowDefinition Height="*"/>
-      <RowDefinition Height="Auto"/>
-    </Grid.RowDefinitions>
-    <Border BorderBrush="#294351" BorderThickness="0,0,0,1" Padding="4,0,0,10">
-      <WrapPanel VerticalAlignment="Center">
-        <StackPanel Orientation="Horizontal" Margin="0,0,24,4">
-          <TextBlock Text="CEDX" FontFamily="Consolas" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
-          <TextBlock Text=" / ASSET OPERATIONS" VerticalAlignment="Center" FontFamily="Consolas" Foreground="{StaticResource SubtleTextBrush}" Margin="8,0,0,0"/>
-        </StackPanel>
-        <Button Content="Refresh / F5" Command="{Binding RefreshCommand}" Style="{StaticResource Compact}"/>
-        <Button Content="Choose TXT folder" Command="{Binding ChooseFolderCommand}" Style="{StaticResource Compact}"/>
-        <Button Content="Open folder" Command="{Binding OpenAssetsFolderCommand}" Style="{StaticResource Compact}"/>
-        <Button Content="Export inventory" Command="{Binding ExportCsvCommand}" Style="{StaticResource Compact}"/>
-        <Button Content="Export software" Command="{Binding ExportSoftwareCsvCommand}" Style="{StaticResource Compact}"/>
-      </WrapPanel>
-    </Border>
-    <Expander Grid.Row="1" Header="WORKSPACE / appearance and layout" Foreground="{StaticResource SubtleTextBrush}" Margin="0,8">
-      <WrapPanel Margin="8">
-        <CheckBox Content="Show filters" IsChecked="{Binding ShowFilters}" VerticalAlignment="Center" Margin="0,0,20,0"/>
-        <TextBlock Text="Accent" VerticalAlignment="Center" Margin="0,0,8,0"/>
-        <ComboBox Width="150" ItemsSource="{Binding AccentOptions}" SelectedItem="{Binding Accent}" Margin="0,0,20,0"/>
-        <TextBlock Text="Tile density" VerticalAlignment="Center" Margin="0,0,8,0"/>
-        <Slider Width="170" Minimum="220" Maximum="440" Value="{Binding TileMinimumWidth}" TickFrequency="20" IsSnapToTickEnabled="True" VerticalAlignment="Center" Margin="0,0,20,0"/>
-        <Button Content="Reset layout" Command="{Binding ResetLayoutCommand}" Style="{StaticResource Compact}"/>
-        <TextBlock Text="Drag the divider to resize the inspector. Layout saves on close." VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}"/>
-      </WrapPanel>
-    </Expander>
-    <Grid x:Name="Workspace" Grid.Row="2">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition x:Name="FilterColumn" Width="220"/>
-        <ColumnDefinition Width="8"/>
-        <ColumnDefinition Width="*" MinWidth="250"/>
-        <ColumnDefinition x:Name="InspectorGapColumn" Width="8"/>
-        <ColumnDefinition x:Name="InspectorColumn" Width="520" MinWidth="0"/>
-      </Grid.ColumnDefinitions>
-      <Grid.RowDefinitions>
-        <RowDefinition Height="*"/>
-        <RowDefinition x:Name="InspectorGapRow" Height="0"/>
-        <RowDefinition x:Name="InspectorRow" Height="0"/>
-      </Grid.RowDefinitions>
-      <Border Grid.Column="0" Grid.RowSpan="3" Background="#0E1B29" CornerRadius="8" Visibility="{Binding ShowFilters,Converter={StaticResource BoolVisibility}}">
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-          <StackPanel Margin="12">
-            <TextBlock Text="FILTER MATRIX" FontFamily="Consolas" Foreground="{DynamicResource AccentBrush}"/>
-            <TextBlock Text="Operating system" Style="{StaticResource Label}"/>
-            <ComboBox ItemsSource="{Binding OsOptions}" SelectedItem="{Binding SelectedOsFilter}"/>
-            <TextBlock Text="Manufacturer" Style="{StaticResource Label}"/>
-            <ComboBox ItemsSource="{Binding ManufacturerOptions}" SelectedItem="{Binding SelectedManufacturerFilter}"/>
-            <TextBlock Text="Live status" Style="{StaticResource Label}"/>
-            <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatusFilter}"/>
-            <TextBlock Text="AnyDesk ID" Style="{StaticResource Label}"/>
-            <TextBox Text="{Binding AnyDeskFilter, UpdateSourceTrigger=PropertyChanged, Delay=200}"/>
-            <TextBlock Text="RAM range / GB" Style="{StaticResource Label}"/>
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition/>
-                <ColumnDefinition Width="8"/>
-                <ColumnDefinition/>
-              </Grid.ColumnDefinitions>
-              <TextBox Text="{Binding MinRamFilterGb, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" ToolTip="Minimum"/>
-              <TextBox Grid.Column="2" Text="{Binding MaxRamFilterGb, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" ToolTip="Maximum"/>
-            </Grid>
-            <TextBlock Text="C: free range / GB" Style="{StaticResource Label}"/>
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition/>
-                <ColumnDefinition Width="8"/>
-                <ColumnDefinition/>
-              </Grid.ColumnDefinitions>
-              <TextBox Text="{Binding MinStorageFilterGb, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" ToolTip="Minimum"/>
-              <TextBox Grid.Column="2" Text="{Binding MaxStorageFilterGb, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" ToolTip="Maximum"/>
-            </Grid>
-            <CheckBox Content="Include unknown RAM / disk" IsChecked="{Binding IncludeUnknownMeasurements}" Margin="0,8,0,0"/>
-            <CheckBox Content="Low C: free space" IsChecked="{Binding LowStorageOnly}" Margin="0,8,0,0"/>
-            <CheckBox Content="Has AnyDesk ID" IsChecked="{Binding HasAnyDeskOnly}" Margin="0,8,0,0"/>
-            <CheckBox Content="BitLocker protection off" IsChecked="{Binding HasBitLockerOffOnly}" Margin="0,8,0,0"/>
-            <CheckBox Content="Has stored credentials" IsChecked="{Binding HasStoredCredentialsOnly}" Margin="0,8,0,0"/>
-            <TextBlock Text="Low C: threshold / GB" Style="{StaticResource Label}"/>
-            <TextBox Text="{Binding LowStorageThresholdGb, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}"/>
-            <TextBlock Text="{Binding FilterValidation}" Foreground="{StaticResource WarningBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
-            <Button Content="Reset all filters" Command="{Binding ResetFiltersCommand}" Margin="0,12,0,0"/>
-            <Separator Margin="0,18"/>
-            <TextBlock Text="NETWORK / ON DEMAND" Style="{StaticResource Label}"/>
-            <ComboBox ItemsSource="{Binding ScanTypeOptions}" SelectedItem="{Binding SelectedNmapScanType}"/>
-            <TextBlock Text="Nmap executable" Style="{StaticResource Label}"/>
-            <TextBox Text="{Binding NmapPath, UpdateSourceTrigger=PropertyChanged}"/>
-            <TextBlock Text="Only the currently filtered IPs are scanned. Unknown is not proof of offline status." TextWrapping="Wrap" Foreground="{StaticResource SubtleTextBrush}" Margin="0,8"/>
-            <Button Content="Scan filtered assets" Command="{Binding ScanNetworkCommand}"/>
-          </StackPanel>
-        </ScrollViewer>
-      </Border>
-      <Grid Grid.Column="2" x:Name="FleetPanel">
-        <Grid.RowDefinitions>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-        <Grid Margin="0,0,0,8">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="Auto"/>
-          </Grid.ColumnDefinitions>
-          <TextBox x:Name="SearchBox" Text="{Binding SearchText,UpdateSourceTrigger=PropertyChanged,Delay=180}" ToolTip="Search all collected fields. Multiple terms use AND; quote an exact phrase. Ctrl+F" Padding="12,9"/>
-          <Button Grid.Column="1" Content="Clear" Command="{Binding ClearSearchCommand}" Style="{StaticResource Compact}" Margin="6,0,0,0"/>
-        </Grid>
-        <WrapPanel Grid.Row="1" Margin="0,0,0,8">
-          <TextBlock Text="{Binding FilteredCount,StringFormat={}{0} ASSETS}" FontFamily="Consolas" FontSize="18" Foreground="{DynamicResource AccentBrush}" Margin="0,4,18,4"/>
-          <TextBlock Text="{Binding LowStorageCount,StringFormat={}{0} low C:}" Foreground="{StaticResource WarningBrush}" Margin="0,6,16,0"/>
-          <TextBlock Text="{Binding TotalRamDisplay,StringFormat={}RAM {0}}" Margin="0,6,16,0"/>
-          <ComboBox Width="160" ItemsSource="{Binding SortOptions}" SelectedItem="{Binding SortMode}"/>
-        </WrapPanel>
-        <Grid Grid.Row="2">
-          <TabControl>
-            <TabItem Header="TILES">
-              <ListBox x:Name="TilesList" ItemsSource="{Binding AssetsView}" SelectedItem="{Binding SelectedAsset,Mode=TwoWay}" Background="Transparent" BorderThickness="0" Padding="0,10,0,0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto" ItemContainerStyle="{StaticResource TileContainer}">
-                <ListBox.ItemsPanel>
-                  <ItemsPanelTemplate>
-                    <WrapPanel IsItemsHost="True"/>
-                  </ItemsPanelTemplate>
-                </ListBox.ItemsPanel>
-                <ListBox.ItemTemplate>
-                  <DataTemplate>
-                    <Grid Margin="12">
-                      <Grid.Width>
-                        <MultiBinding Converter="{StaticResource TileWidth}">
-                          <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=ListBox}"/>
-                          <Binding Path="DataContext.FilteredCount" RelativeSource="{RelativeSource AncestorType=Window}"/>
-                          <Binding Path="DataContext.TileMinimumWidth" RelativeSource="{RelativeSource AncestorType=Window}"/>
-                        </MultiBinding>
-                      </Grid.Width>
-                      <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                      </Grid.RowDefinitions>
-                      <TextBlock Text="{Binding Hostname}" FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Hostname}"/>
-                      <StackPanel Grid.Row="1" Margin="0,10,0,8">
-                        <TextBlock Text="{Binding WindowsUserDisplay}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" TextTrimming="CharacterEllipsis"/>
-                        <TextBlock Text="{Binding WindowsAccount}" TextTrimming="CharacterEllipsis" Foreground="{StaticResource SubtleTextBrush}" ToolTip="{Binding WindowsAccount}"/>
-                      </StackPanel>
-                      <Grid Grid.Row="2" Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                          <ColumnDefinition/>
-                          <ColumnDefinition/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel>
-                          <TextBlock Text="{Binding IpAddress}" FontFamily="Consolas" Foreground="{StaticResource AccentBlueBrush}"/>
-                          <TextBlock Text="{Binding OsShortDisplay}"/>
-                          <TextBlock Text="{Binding OnlineStatus,StringFormat={}Live: {0}}" Foreground="{StaticResource SubtleTextBrush}"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1">
-                          <TextBlock Text="{Binding RamDisplay,StringFormat={}RAM {0}}"/>
-                          <TextBlock Text="{Binding CDriveFreeDisplay,StringFormat={}C: {0} free}"/>
-                          <TextBlock Text="{Binding StorageHealthDisplay}">
-                            <TextBlock.Style>
-                              <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}"/>
-                                <Style.Triggers>
-                                  <DataTrigger Binding="{Binding HasLowStorage}" Value="True">
-                                    <Setter Property="Foreground" Value="{StaticResource WarningBrush}"/>
-                                  </DataTrigger>
-                                </Style.Triggers>
-                              </Style>
-                            </TextBlock.Style>
-                          </TextBlock>
-                        </StackPanel>
-                      </Grid>
-                      <Button Grid.Row="3" Content="{Binding AnyDeskActionText}" Command="{Binding DataContext.LaunchAnyDeskCommand,RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding AnyDeskId}" Style="{StaticResource Primary}"/>
-                      <WrapPanel Grid.Row="4">
-                        <Button Content="Copy user" Command="{Binding DataContext.CopyTextCommand,RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding WindowsAccount}" Style="{StaticResource Compact}"/>
-                        <Button Content="Copy IP" Command="{Binding DataContext.CopyTextCommand,RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding IpAddress}" Style="{StaticResource Compact}"/>
-                      </WrapPanel>
-                    </Grid>
-                  </DataTemplate>
-                </ListBox.ItemTemplate>
-              </ListBox>
-            </TabItem>
-            <TabItem Header="INVENTORY">
-              <DataGrid ItemsSource="{Binding AssetsView}" SelectedItem="{Binding SelectedAsset,Mode=TwoWay}" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single">
-                <DataGrid.Columns>
-                  <DataGridTextColumn Header="Hostname" Binding="{Binding Hostname}" Width="180"/>
-                  <DataGridTextColumn Header="Account" Binding="{Binding WindowsAccount}" Width="200"/>
-                  <DataGridTextColumn Header="IP" Binding="{Binding IpAddress}" Width="130"/>
-                  <DataGridTextColumn Header="RAM GB" Binding="{Binding RamGb}"/>
-                  <DataGridTextColumn Header="C: free GB" Binding="{Binding CDriveFreeGb,StringFormat=0.##}"/>
-                  <DataGridTextColumn Header="AnyDesk" Binding="{Binding AnyDeskId}"/>
-                  <DataGridTextColumn Header="OS" Binding="{Binding OsVersion}" Width="240"/>
-                </DataGrid.Columns>
-              </DataGrid>
-            </TabItem>
-          </TabControl>
-          <Border Visibility="{Binding HasNoResults,Converter={StaticResource BoolVisibility}}" Background="#E8101826" IsHitTestVisible="False">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-              <TextBlock Text="NO MATCHING ASSETS" FontFamily="Consolas" FontSize="20" Foreground="{DynamicResource AccentBrush}"/>
-              <TextBlock Text="Clear the search or reset the filters." Margin="0,10,0,0"/>
-            </StackPanel>
-          </Border>
-        </Grid>
-      </Grid>
-      <GridSplitter x:Name="InspectorDivider" Grid.Column="3" Width="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="#294351" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" DragCompleted="InspectorDivider_DragCompleted"/>
-      <Border x:Name="InspectorPanel" Grid.Column="4" BorderBrush="#294351" BorderThickness="1" CornerRadius="8" Background="#0D1725" Padding="12">
-        <Grid>
-          <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-          </Grid.RowDefinitions>
-          <StackPanel>
-            <TextBlock Text="ASSET INSPECTOR" FontFamily="Consolas" Foreground="{DynamicResource AccentBrush}"/>
-            <TextBlock Text="{Binding SelectedAsset.Hostname,TargetNullValue=Select an asset}" FontSize="23" FontWeight="Bold" TextTrimming="CharacterEllipsis" Margin="0,4"/>
-            <TextBlock x:Name="InspectorAccount" Text="{Binding SelectedAsset.WindowsAccount}" Foreground="{StaticResource SubtleTextBrush}" TextTrimming="CharacterEllipsis"/>
-            <TextBlock x:Name="InspectorSummary" Text="{Binding DetailSummary}" Foreground="{StaticResource SubtleTextBrush}" Margin="0,4"/>
-          </StackPanel>
-          <WrapPanel Grid.Row="1" Margin="0,6,0,4">
-            <Button Content="AnyDesk" Command="{Binding ConnectSelectedAnyDeskCommand}" Style="{StaticResource Primary}"/>
-            <Button Content="Copy IP" Command="{Binding CopyTextCommand}" CommandParameter="{Binding SelectedAsset.IpAddress}" Style="{StaticResource Compact}"/>
-            <Button Content="Copy WinRM" Command="{Binding CopyTextCommand}" CommandParameter="{Binding SelectedAsset.WinRmCommand}" Style="{StaticResource Compact}"/>
-            <Button Content="Open original TXT" Command="{Binding OpenSourceCommand}" Style="{StaticResource Compact}"/>
-          </WrapPanel>
-          <Grid Grid.Row="2" Margin="0,0,0,6">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="120"/>
-              <ColumnDefinition Width="8"/>
-              <ColumnDefinition/>
-            </Grid.ColumnDefinitions>
-            <ComboBox ItemsSource="{Binding DetailCategories}" SelectedItem="{Binding DetailCategory}"/>
-            <ComboBox Grid.Column="2" ItemsSource="{Binding DetailSections}" SelectedItem="{Binding SelectedDetailSection}" DisplayMemberPath="DisplayName" ToolTip="All report sections, including collector extensions"/>
-          </Grid>
-          <TextBox Grid.Row="3" Text="{Binding DetailSearch,UpdateSourceTrigger=PropertyChanged,Delay=150}" ToolTip="Filter rows in the selected section by record, field or value" Margin="0,0,0,8"/>
-          <TabControl Grid.Row="4">
-            <TabItem Header="FIELDS">
-              <DataGrid x:Name="DetailGrid" ItemsSource="{Binding DetailRows}" AutoGenerateColumns="False" IsReadOnly="True" SelectionUnit="CellOrRowHeader" ClipboardCopyMode="IncludeHeader" EnableRowVirtualization="True" EnableColumnVirtualization="True" ScrollViewer.HorizontalScrollBarVisibility="Auto">
-                <DataGrid.Columns>
-                  <DataGridTextColumn Header="#" Binding="{Binding Record}" Width="45"/>
-                  <DataGridTextColumn Header="Field" Binding="{Binding Field}" Width="140"/>
-                  <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="*" MinWidth="140">
-                    <DataGridTextColumn.ElementStyle>
-                      <Style TargetType="TextBlock">
-                        <Setter Property="TextWrapping" Value="Wrap"/>
-                        <Setter Property="Padding" Value="4"/>
-                      </Style>
-                    </DataGridTextColumn.ElementStyle>
-                  </DataGridTextColumn>
-                </DataGrid.Columns>
-              </DataGrid>
-            </TabItem>
-            <TabItem Header="SECTION">
-              <TextBox Text="{Binding RawDetail,Mode=OneWay}" IsReadOnly="True" FontFamily="Consolas" TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"/>
-            </TabItem>
-            <TabItem Header="SOURCE TXT">
-              <TextBox Text="{Binding RawAsset,Mode=OneWay}" IsReadOnly="True" FontFamily="Consolas" TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"/>
-            </TabItem>
-          </TabControl>
-          <WrapPanel Grid.Row="5" Margin="0,8,0,0">
-            <Button Content="Copy visible rows" Command="{Binding CopyDetailRowsCommand}" Style="{StaticResource Compact}"/>
-            <Button Content="Export section CSV" Command="{Binding ExportDetailRowsCommand}" Style="{StaticResource Compact}"/>
-            <CheckBox Content="Reveal license keys" IsChecked="{Binding RevealKeys}" VerticalAlignment="Center" Margin="4,0,12,0"/>
-            <TextBlock Text="{Binding DetailRowCount}" VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}"/>
-          </WrapPanel>
-        </Grid>
-      </Border>
-    </Grid>
-    <Grid Grid.Row="3" Margin="0,8,0,0">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition/>
-        <ColumnDefinition Width="Auto"/>
-      </Grid.ColumnDefinitions>
-      <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource SubtleTextBrush}" TextTrimming="CharacterEllipsis"/>
-      <TextBlock Grid.Column="1" Text="{Binding LastRefreshText,StringFormat={}LAST SYNC / {0}}" FontFamily="Consolas" Foreground="{DynamicResource AccentBrush}"/>
-    </Grid>
-  </Grid>
-</Window>
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:common="clr-namespace:Cedx.App.Common" x:Class="Cedx.App.MainWindow" Title="CEDX | Asset inventory" Width="1600" Height="960" MinWidth="1000" MinHeight="720" AllowDrop="True" Drop="Window_Drop">
+<Window.Resources>
+<BooleanToVisibilityConverter x:Key="BoolVisibility"/><common:TileWidthConverter x:Key="TileWidth"/>
+<Style x:Key="Card" TargetType="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,0,12,12"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><Border x:Name="Frame" Background="#141F30" BorderBrush="#283D55" BorderThickness="1" CornerRadius="8"><ContentPresenter/></Border><ControlTemplate.Triggers><Trigger Property="IsSelected" Value="True"><Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/><Setter TargetName="Frame" Property="Background" Value="#152D37"/></Trigger><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Frame" Property="BorderBrush" Value="#7FB5C2"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
+<Style x:Key="Nav" TargetType="Button" BasedOn="{StaticResource Quiet}"><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="Margin" Value="0,0,0,6"/><Setter Property="Padding" Value="10,10"/></Style>
+</Window.Resources>
+<Window.CommandBindings><CommandBinding Command="ApplicationCommands.Find" Executed="FindCommand_Executed"/></Window.CommandBindings><Window.InputBindings><KeyBinding Key="F" Modifiers="Control" Command="ApplicationCommands.Find"/><KeyBinding Key="F5" Command="{Binding RefreshCommand}"/><KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveAssetCommand}"/></Window.InputBindings>
+<Grid x:Name="RootLayout" Margin="20" Background="#090F19"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+<Grid Margin="0,0,0,18"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel Orientation="Horizontal"><Border Width="42" Height="42" Background="#173D43" CornerRadius="8" Margin="0,0,12,0"><TextBlock Text="&#59380;" FontFamily="Segoe MDL2 Assets" FontSize="22" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><StackPanel><TextBlock Text="CEDX" FontSize="24" FontWeight="Bold"/><TextBlock Text="ASSET INVENTORY / LOCAL WORKSPACE" Foreground="{StaticResource SubtleTextBrush}" FontSize="10" FontFamily="Consolas"/></StackPanel></StackPanel><StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"><Button Content="Import TXT files" Command="{Binding ImportFilesCommand}" Style="{StaticResource Primary}" Margin="0,0,8,0"/><Button Content="Import folder" Command="{Binding ChooseFolderCommand}" Margin="0,0,8,0"/><Button Content="Refresh / F5" Command="{Binding RefreshCommand}" Style="{StaticResource Quiet}"/></StackPanel></Grid>
+<Expander Grid.Row="1" Header="Workspace settings and data tools" Margin="0,0,0,14"><WrapPanel Margin="0,12"><TextBlock Text="Accent" VerticalAlignment="Center" Margin="0,0,10,0"/><ComboBox Width="155" ItemsSource="{Binding AccentOptions}" SelectedItem="{Binding Accent}" Margin="0,0,16,0"/><TextBlock Text="Card size" VerticalAlignment="Center"/><Slider Minimum="240" Maximum="380" Width="130" Value="{Binding TileMinimumWidth}" VerticalAlignment="Center" Margin="10,0,16,0"/><Button Content="Export inventory CSV" Command="{Binding ExportCsvCommand}" Margin="0,0,8,0"/><Button Content="Export JSON" Command="{Binding ExportJsonCommand}" Margin="0,0,8,0"/><Button Content="Export software" Command="{Binding ExportSoftwareCsvCommand}" Margin="0,0,8,0"/><Button Content="Backup database" Command="{Binding BackupCommand}" Margin="0,0,8,0"/><Button Content="Reset layout" Command="{Binding ResetLayoutCommand}"/></WrapPanel></Expander>
+<Grid x:Name="Workspace" Grid.Row="2"><Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*" MinWidth="300"/><ColumnDefinition x:Name="InspectorGapColumn" Width="14"/><ColumnDefinition x:Name="InspectorColumn" Width="440"/></Grid.ColumnDefinitions>
+<Border Background="#0F1A29" CornerRadius="8" Padding="12"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+<TextBlock Text="WORKSPACE" FontSize="10" FontFamily="Consolas" Foreground="{StaticResource SubtleTextBrush}" Margin="0,4,0,12"/>
+<Button Style="{StaticResource Nav}" Content="All assets" Command="{Binding ScopeCommand}" CommandParameter="All assets"/>
+<Button Style="{StaticResource Nav}" Content="{Binding ManagedCount,StringFormat={}Managed assets  &#183;  {0}}" Command="{Binding ScopeCommand}" CommandParameter="Managed assets"/>
+<Button Style="{StaticResource Nav}" Content="{Binding InboxCount,StringFormat={}Scan inbox  &#183;  {0}}" Command="{Binding ScopeCommand}" CommandParameter="Scan inbox"/>
+<Button Style="{StaticResource Nav}" Content="{Binding DemoCount,StringFormat={}Demo samples  &#183;  {0}}" Command="{Binding ScopeCommand}" CommandParameter="Demo samples"/>
+<Separator Margin="0,10"/><TextBlock Text="Company" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding CompanyOptions}" SelectedItem="{Binding CompanyFilter}"/>
+<TextBlock Text="Department" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding DepartmentOptions}" SelectedItem="{Binding DepartmentFilter}"/>
+<TextBlock Text="Operating system" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding OsOptions}" SelectedItem="{Binding SelectedOsFilter}"/>
+<CheckBox Content="Low disk space" IsChecked="{Binding LowStorageOnly}" Margin="0,15,0,5"/><CheckBox Content="AnyDesk available" IsChecked="{Binding HasAnyDeskOnly}"/>
+<Expander Header="Advanced filters" Margin="0,14"><StackPanel>
+<TextBlock Text="Manufacturer" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding ManufacturerOptions}" SelectedItem="{Binding SelectedManufacturerFilter}"/>
+<TextBlock Text="Min / max RAM GB" Style="{StaticResource Caption}"/><TextBox Text="{Binding MinRamFilterGb,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True}"/><TextBox Text="{Binding MaxRamFilterGb,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True}"/>
+<TextBlock Text="Min / max C: free GB" Style="{StaticResource Caption}"/><TextBox Text="{Binding MinStorageFilterGb,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True}"/><TextBox Text="{Binding MaxStorageFilterGb,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True}"/>
+<CheckBox Content="Include unknown values" IsChecked="{Binding IncludeUnknownMeasurements}"/><CheckBox Content="BitLocker off" IsChecked="{Binding HasBitLockerOffOnly}"/>
+<TextBlock Text="Low disk threshold GB" Style="{StaticResource Caption}"/><TextBox Text="{Binding LowStorageThresholdGb,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True}"/>
+</StackPanel></Expander>
+<TextBlock Text="{Binding FilterValidation}" Foreground="{StaticResource WarningBrush}" TextWrapping="Wrap"/><Button Content="Clear filters" Command="{Binding ResetFiltersCommand}" Style="{StaticResource Quiet}"/>
+<Separator Margin="0,18"/><TextBlock Text="SCAN SOURCE" FontFamily="Consolas" FontSize="10" Foreground="{StaticResource SubtleTextBrush}"/><TextBlock Text="{Binding AssetsFolderPath}" FontSize="11" TextWrapping="Wrap" Margin="0,8" ToolTip="{Binding AssetsFolderPath}"/><CheckBox Content="Watch folder" IsChecked="{Binding WatchFolder}"/>
+<Button Content="Load demo samples" Command="{Binding LoadSamplesCommand}" Style="{StaticResource Quiet}" Margin="0,10,0,0"/>
+</StackPanel></ScrollViewer></Border>
+<Grid x:Name="FleetPanel" Grid.Column="2"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+<Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding InventoryScope}" FontSize="26" FontWeight="SemiBold"/><Button Grid.Column="1" Content="Details" Command="{Binding ToggleInspectorCommand}" Style="{StaticResource Quiet}"/></Grid>
+<WrapPanel Grid.Row="1" Margin="0,0,0,15"><TextBlock Text="{Binding FilteredCount,StringFormat={}{0} visible}" Foreground="{DynamicResource AccentBrush}" Margin="0,0,12,0"/><TextBlock Text="{Binding LoadedCount,StringFormat={}{0} stored}" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,12,0"/><TextBlock Text="{Binding LowStorageCount,StringFormat={}{0} low disk}" Foreground="{StaticResource WarningBrush}"/></WrapPanel>
+<Grid Grid.Row="2" Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Grid><TextBox x:Name="SearchBox" Text="{Binding SearchText,UpdateSourceTrigger=PropertyChanged,Delay=180}" Padding="12,9" MinHeight="40"/><TextBlock Text="Search hostname, owner, company, software..." Foreground="#70869F" Margin="12,0" VerticalAlignment="Center" IsHitTestVisible="False"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SearchText}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></Grid><ComboBox Grid.Column="1" Width="135" ItemsSource="{Binding SortOptions}" SelectedItem="{Binding SortMode}" Margin="8,0,0,0"/></Grid>
+<Grid Grid.Row="3"><TabControl x:Name="FleetTabs"><TabItem Header="CARDS"><ListBox x:Name="TilesList" ItemsSource="{Binding AssetsView}" SelectedItem="{Binding SelectedAsset,Mode=TwoWay}" ItemContainerStyle="{StaticResource Card}" ScrollViewer.VerticalScrollBarVisibility="Auto" IsSynchronizedWithCurrentItem="False"><ListBox.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ListBox.ItemsPanel><ListBox.ItemTemplate><DataTemplate><Grid Margin="16"><Grid.Width><MultiBinding Converter="{StaticResource TileWidth}"><Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=ListBox}"/><Binding Path="DataContext.FilteredCount" RelativeSource="{RelativeSource AncestorType=Window}"/><Binding Path="DataContext.TileMinimumWidth" RelativeSource="{RelativeSource AncestorType=Window}"/></MultiBinding></Grid.Width><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+<Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="&#59380;" FontFamily="Segoe MDL2 Assets" FontSize="24" Foreground="{DynamicResource AccentBrush}"/><Border Grid.Column="1" Background="#24374C" CornerRadius="3" Padding="7,3"><TextBlock Text="{Binding ManagementDisplay}" FontFamily="Consolas" FontSize="10" Foreground="#AFC8D7"/></Border></Grid>
+<StackPanel Grid.Row="1" Margin="0,12,0,0"><TextBlock Text="{Binding Hostname}" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Hostname}"/><TextBlock Text="{Binding OwnerDisplay}" Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding OrganizationDisplay}" Foreground="{StaticResource SubtleTextBrush}" FontSize="11" TextTrimming="CharacterEllipsis" MinHeight="16"/></StackPanel>
+<Grid Grid.Row="2" Margin="0,13,0,8"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="IP ADDRESS" FontSize="9" Foreground="{StaticResource SubtleTextBrush}"/><TextBlock Text="{Binding IpAddress}" FontFamily="Consolas" FontSize="12" Margin="0,3"/><TextBlock Text="{Binding OsShortDisplay}" FontSize="11" Foreground="{StaticResource SubtleTextBrush}"/></StackPanel><StackPanel Grid.Column="1"><TextBlock Text="{Binding RamDisplay,StringFormat={}RAM  {0}}" FontSize="12"/><TextBlock Text="{Binding CDriveTileDisplay,StringFormat={}C: free  {0}}" FontSize="12" Margin="0,3"/><TextBlock Text="{Binding StorageHealthDisplay}" FontSize="11"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}"/><Style.Triggers><DataTrigger Binding="{Binding HasLowStorage}" Value="True"><Setter Property="Foreground" Value="{StaticResource WarningBrush}"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></StackPanel></Grid>
+<Grid Grid.Row="3" Margin="0,5,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Button Content="Open asset" Command="{Binding DataContext.OpenAssetCommand,RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource Quiet}" Margin="0,0,8,0"/><Button Grid.Column="1" Content="AnyDesk" Command="{Binding DataContext.LaunchAnyDeskCommand,RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding AnyDeskId}"/></Grid>
+</Grid></DataTemplate></ListBox.ItemTemplate></ListBox></TabItem>
+<TabItem Header="TABLE"><DataGrid x:Name="InventoryGrid" ItemsSource="{Binding AssetsView}" SelectedItem="{Binding SelectedAsset,Mode=TwoWay}" SelectionMode="Single" IsSynchronizedWithCurrentItem="False"><DataGrid.Columns><DataGridTextColumn Header="Hostname" Binding="{Binding Hostname}" Width="160"/><DataGridTextColumn Header="Owner" Binding="{Binding OwnerDisplay}" Width="150"/><DataGridTextColumn Header="Company" Binding="{Binding Company}" Width="130"/><DataGridTextColumn Header="Department" Binding="{Binding Department}" Width="130"/><DataGridTextColumn Header="IP" Binding="{Binding IpAddress}" Width="130"/><DataGridTextColumn Header="RAM GB" Binding="{Binding RamGb}" Width="85"/><DataGridTextColumn Header="C: free GB" Binding="{Binding CDriveFreeGb}" Width="95"/><DataGridTextColumn Header="State" Binding="{Binding ManagementDisplay}" Width="100"/></DataGrid.Columns></DataGrid></TabItem></TabControl><Border Background="#EA0C1624" Visibility="{Binding HasNoResults,Converter={StaticResource BoolVisibility}}" Margin="0,45,0,0"><StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"><TextBlock Text="No matching assets" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center"/><TextBlock Text="Clear filters or import a TXT scan to get started." Margin="0,10,0,20" Foreground="{StaticResource SubtleTextBrush}"/><Button Content="Clear filters" Command="{Binding ResetFiltersCommand}"/><Button Content="Import TXT files" Command="{Binding ImportFilesCommand}" Style="{StaticResource Primary}" Margin="0,8,0,0"/></StackPanel></Border></Grid>
+<Expander Grid.Row="4" Header="{Binding LastImportSummary}" Margin="0,10,0,0" MaxHeight="220"><DataGrid ItemsSource="{Binding ImportResults}" MaxHeight="180"><DataGrid.Columns><DataGridTextColumn Header="Result" Binding="{Binding Result}" Width="90"/><DataGridTextColumn Header="File" Binding="{Binding File}" Width="220"/><DataGridTextColumn Header="Detail" Binding="{Binding Message}" Width="*"/></DataGrid.Columns></DataGrid></Expander>
+</Grid>
+<GridSplitter x:Name="InspectorDivider" Grid.Column="3" Width="6" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="#22374D" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" DragCompleted="InspectorDivider_DragCompleted"/>
+<Border x:Name="InspectorPanel" Grid.Column="4" Background="#101C2C" BorderBrush="#2C4159" BorderThickness="1" CornerRadius="8" Padding="16"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+<Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="ASSET WORKSPACE" FontFamily="Consolas" Foreground="{DynamicResource AccentBrush}" FontSize="10"/><TextBlock Text="{Binding SelectedAsset.Hostname,TargetNullValue=Select an asset}" FontSize="22" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,6,0,0"/><TextBlock Text="{Binding SelectedAsset.ManagementDisplay}" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" Margin="0,4"/></StackPanel><Button Grid.Column="1" Content="&#10005;" Command="{Binding ToggleInspectorCommand}" Style="{StaticResource Quiet}" VerticalAlignment="Top"/></Grid>
+<WrapPanel Grid.Row="1" Margin="0,12,0,8"><Button Content="Manage asset" Command="{Binding ManageAssetCommand}" Style="{StaticResource Primary}" Margin="0,0,6,6"/><Button Content="Copy IP" Command="{Binding CopyTextCommand}" CommandParameter="{Binding SelectedAsset.IpAddress}" Style="{StaticResource Quiet}" Margin="0,0,6,6"/><Button Content="AnyDesk" Command="{Binding ConnectSelectedAnyDeskCommand}" Style="{StaticResource Quiet}" Margin="0,0,0,6"/></WrapPanel>
+<TabControl x:Name="InspectorTabs" Grid.Row="2" SelectedIndex="{Binding InspectorTab}">
+<TabItem Header="Overview"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+<Grid Margin="0,4,0,10"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions><Border Background="#1A3040" Padding="12" CornerRadius="5"><StackPanel><TextBlock Text="MEMORY" Foreground="{StaticResource SubtleTextBrush}" FontSize="10"/><TextBlock Text="{Binding SelectedAsset.RamDisplay}" FontSize="24" FontWeight="SemiBold" Margin="0,5"/></StackPanel></Border><Border Grid.Column="2" Background="#1D2C41" Padding="12" CornerRadius="5"><StackPanel><TextBlock Text="C: FREE SPACE" Foreground="{StaticResource SubtleTextBrush}" FontSize="10"/><TextBlock Text="{Binding SelectedAsset.CDriveTileDisplay}" FontSize="24" FontWeight="SemiBold" Margin="0,5"/></StackPanel></Border></Grid>
+<TextBlock Text="Assignment" Style="{StaticResource SectionTitle}"/>
+<TextBlock Text="Person" Style="{StaticResource Caption}"/><TextBlock Text="{Binding SelectedAsset.OwnerDisplay}" TextWrapping="Wrap"/><TextBlock Text="Company / department" Style="{StaticResource Caption}"/><TextBlock Text="{Binding SelectedAsset.OrganizationDisplay}" TextWrapping="Wrap"/><TextBlock Text="Windows account" Style="{StaticResource Caption}"/><TextBlock Text="{Binding SelectedAsset.WindowsAccount}" TextWrapping="Wrap"/><TextBlock Text="Asset tag" Style="{StaticResource Caption}"/><TextBlock Text="{Binding SelectedAsset.AssetTag}" TextWrapping="Wrap"/><TextBlock Text="Location" Style="{StaticResource Caption}"/><TextBlock Text="{Binding SelectedAsset.Location}" TextWrapping="Wrap"/><TextBlock Text="Hardware and system" Style="{StaticResource SectionTitle}"/><TextBlock Text="Manufacturer / model" Style="{StaticResource Caption}"/><TextBlock Text="{Binding SelectedAsset.Model}" TextWrapping="Wrap"/><TextBlock Text="Serial number" Style="{StaticResource Caption}"/><TextBlock Text="{Binding SelectedAsset.SerialNumber}" TextWrapping="Wrap"/><TextBlock Text="Operating system" Style="{StaticResource Caption}"/><TextBlock Text="{Binding SelectedAsset.OsVersion}" TextWrapping="Wrap"/><TextBlock Text="CPU" Style="{StaticResource Caption}"/><TextBlock Text="{Binding SelectedAsset.Cpu}" TextWrapping="Wrap"/><TextBlock Text="Graphics" Style="{StaticResource Caption}"/><TextBlock Text="{Binding SelectedAsset.Gpu}" TextWrapping="Wrap"/><TextBlock Text="Antivirus" Style="{StaticResource Caption}"/><TextBlock Text="{Binding SelectedAsset.Antivirus}" TextWrapping="Wrap"/><TextBlock Text="Network address" Style="{StaticResource Caption}"/><TextBlock Text="{Binding SelectedAsset.IpAddress}" TextWrapping="Wrap"/><TextBlock Text="Gateway" Style="{StaticResource Caption}"/><TextBlock Text="{Binding SelectedAsset.Network.DefaultGateway}" TextWrapping="Wrap"/><TextBlock Text="DNS" Style="{StaticResource Caption}"/><TextBlock Text="{Binding SelectedAsset.Network.DnsServers}" TextWrapping="Wrap"/><TextBlock Text="Storage volumes" Style="{StaticResource SectionTitle}"/><ItemsControl ItemsSource="{Binding SelectedAsset.LocalDisks}"><ItemsControl.ItemTemplate><DataTemplate><Border BorderBrush="#2C4159" BorderThickness="0,0,0,1" Padding="0,8"><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding DriveLetter}" FontWeight="Bold" Margin="0,0,12,0"/><TextBlock Text="{Binding FreeGb,StringFormat={}{0:0.#} GB free}"/><TextBlock Text="{Binding TotalGb,StringFormat={} / {0:0.#} GB}" Foreground="{StaticResource SubtleTextBrush}"/></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+<TextBlock Text="Collection notes" Style="{StaticResource SectionTitle}"/><TextBlock Text="{Binding DetailSummary}" Foreground="{StaticResource SubtleTextBrush}" TextWrapping="Wrap"/><ItemsControl ItemsSource="{Binding SelectedAsset.ParseWarnings}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Foreground="{StaticResource WarningBrush}" TextWrapping="Wrap" Margin="0,5"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+<Expander Header="Remote diagnostics" Margin="0,18"><StackPanel><Button Content="Copy WinRM command" Command="{Binding CopyTextCommand}" CommandParameter="{Binding SelectedAsset.WinRmCommand}"/><TextBlock Text="Nmap executable" Style="{StaticResource Caption}"/><TextBox Text="{Binding NmapPath}"/><ComboBox ItemsSource="{Binding ScanTypeOptions}" SelectedItem="{Binding SelectedNmapScanType}" Margin="0,8"/><Button Content="Scan filtered assets" Command="{Binding ScanNetworkCommand}"/></StackPanel></Expander>
+</StackPanel></ScrollViewer></TabItem>
+<TabItem Header="Manage"><Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel IsEnabled="{Binding HasSelection}"><TextBlock Text="Make this scan a managed asset" FontSize="18" FontWeight="SemiBold" Margin="0,6,0,8"/><TextBlock Text="Assign responsibility and location. Future scans keep these fields." Foreground="{StaticResource SubtleTextBrush}" TextWrapping="Wrap"/><TextBlock Text="Company" Style="{StaticResource Caption}"/><TextBox Text="{Binding EditCompany,UpdateSourceTrigger=PropertyChanged}"/><TextBlock Text="Person / assigned to" Style="{StaticResource Caption}"/><TextBox Text="{Binding EditPerson,UpdateSourceTrigger=PropertyChanged}"/><TextBlock Text="Department" Style="{StaticResource Caption}"/><TextBox Text="{Binding EditDepartment,UpdateSourceTrigger=PropertyChanged}"/><TextBlock Text="Location / room" Style="{StaticResource Caption}"/><TextBox Text="{Binding EditLocation,UpdateSourceTrigger=PropertyChanged}"/><TextBlock Text="Asset tag" Style="{StaticResource Caption}"/><TextBox Text="{Binding EditTag,UpdateSourceTrigger=PropertyChanged}"/><TextBlock Text="Lifecycle" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding Lifecycles}" SelectedItem="{Binding EditLifecycle}"/><TextBlock Text="Notes" Style="{StaticResource Caption}"/><TextBox Text="{Binding EditNotes,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" Height="100" VerticalContentAlignment="Top"/></StackPanel></ScrollViewer><StackPanel Grid.Row="1" Margin="0,12,0,0"><TextBlock Text="{Binding DraftStatus}" Foreground="{StaticResource WarningBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/><Button Content="{Binding SaveAssetLabel}" Command="{Binding SaveAssetCommand}" Style="{StaticResource Primary}"/><Button Content="Discard changes" Command="{Binding DiscardDraftCommand}" Style="{StaticResource Quiet}" Margin="0,8,0,0"/></StackPanel></Grid></TabItem>
+<TabItem Header="Scan data"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><ComboBox ItemsSource="{Binding DetailCategories}" SelectedItem="{Binding DetailCategory}" Margin="0,0,0,7"/><ComboBox Grid.Row="1" ItemsSource="{Binding DetailSections}" SelectedItem="{Binding SelectedDetailSection}" DisplayMemberPath="DisplayName" Margin="0,0,0,7"/><TextBox Grid.Row="2" Text="{Binding DetailSearch,UpdateSourceTrigger=PropertyChanged,Delay=150}" ToolTip="Search fields and values in this section" Margin="0,0,0,7"/><TabControl Grid.Row="3"><TabItem Header="Fields"><DataGrid x:Name="DetailGrid" ItemsSource="{Binding DetailRows}" ClipboardCopyMode="IncludeHeader"><DataGrid.Columns><DataGridTextColumn Header="#" Binding="{Binding Record}" Width="55"/><DataGridTextColumn Header="Field" Binding="{Binding Field}" Width="130"/><DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="*" MinWidth="120"><DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="Padding" Value="5"/></Style></DataGridTextColumn.ElementStyle></DataGridTextColumn></DataGrid.Columns></DataGrid></TabItem><TabItem Header="Raw TXT"><TextBox Text="{Binding RawAsset,Mode=OneWay}" IsReadOnly="True" FontFamily="Consolas" FontSize="11" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"/></TabItem></TabControl><StackPanel Grid.Row="4" Margin="0,10,0,0"><CheckBox Content="Reveal license keys for selected asset" IsChecked="{Binding RevealKeys}"/><WrapPanel><Button Content="Copy fields" Command="{Binding CopyDetailRowsCommand}" Style="{StaticResource Quiet}" Margin="0,0,6,6"/><Button Content="Export section" Command="{Binding ExportDetailRowsCommand}" Style="{StaticResource Quiet}" Margin="0,0,6,6"/><Button Content="Export TXT" Command="{Binding ExportReportCommand}" Style="{StaticResource Quiet}"/></WrapPanel><TextBlock Text="{Binding DetailRowCount}" Foreground="{StaticResource SubtleTextBrush}" FontSize="11"/></StackPanel></Grid></TabItem>
+<TabItem Header="History"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel><TextBlock Text="Saved scan revisions" Style="{StaticResource SectionTitle}"/><TextBlock Text="Repeated identical scans are not duplicated. Older scans stay in history without replacing the latest data." TextWrapping="Wrap" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,0,12"/><ItemsControl ItemsSource="{Binding ScanHistory}"><ItemsControl.ItemTemplate><DataTemplate><Border BorderBrush="#2C4159" BorderThickness="0,0,0,1" Padding="0,12"><StackPanel><TextBlock Text="{Binding Date}" FontWeight="SemiBold"/><TextBlock Text="{Binding Source}" Foreground="{StaticResource SubtleTextBrush}" TextWrapping="Wrap" FontSize="11" Margin="0,6"/><Button Content="Open saved snapshot" Command="{Binding DataContext.ViewHistoryCommand,RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource Quiet}" HorizontalAlignment="Left"/></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel></ScrollViewer></TabItem>
+</TabControl></Grid></Border>
+</Grid>
+<Grid Grid.Row="3" Margin="0,14,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding StatusMessage}" FontSize="11" Foreground="{StaticResource SubtleTextBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusMessage}"/><TextBlock Grid.Column="1" Text="LOCAL DATABASE" FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource AccentBrush}" ToolTip="{Binding DatabasePath}" Margin="18,0,0,0"/></Grid>
+</Grid></Window>

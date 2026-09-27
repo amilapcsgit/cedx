@@ -4,6 +4,19 @@ namespace Cedx.Core.Models;
 
 public sealed class AssetRecord : System.ComponentModel.INotifyPropertyChanged
 {
+    public string AssetId { get; set; } = "";
+    public Cedx.Core.Storage.AssetAssignment Assignment { get; set; } = new();
+    public bool IsManaged { get; set; }
+    public bool IsSample { get; set; }
+    public int RevisionCount { get; set; }
+    public string Company => Assignment.Company;
+    public string Person => Assignment.Person;
+    public string Department => Assignment.Department;
+    public string Location => Assignment.Location;
+    public string AssetTag => Assignment.AssetTag;
+    public string ManagementDisplay => IsSample ? "DEMO" : IsManaged ? "MANAGED" : "SCAN INBOX";
+    public string OwnerDisplay => string.IsNullOrWhiteSpace(Person) ? WindowsUserDisplay : Person;
+    public string OrganizationDisplay => string.Join(" / ", new[]{Company, Department}.Where(s => !string.IsNullOrWhiteSpace(s)));
     public string SourceFilePath { get; set; } = string.Empty;
     public string SourceFileName { get; set; } = string.Empty;
     public DateTimeOffset LastModified { get; set; }

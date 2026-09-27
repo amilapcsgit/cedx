@@ -35,7 +35,7 @@ public sealed class TileWidthConverter : IValueConverter, IMultiValueConverter
             columns = Math.Min(columns, itemCount.Value);
         }
 
-        return Math.Max(60, Math.Floor((available / columns) - TileGap - 24));
+        return Math.Max(60, Math.Floor((available / columns) - TileGap - 34));
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

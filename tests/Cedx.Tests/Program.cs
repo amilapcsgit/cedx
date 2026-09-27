@@ -47,3 +47,29 @@ var notified=false;a.PropertyChanged+=(_,e)=>notified|=e.PropertyName==nameof(a.
 Check(parser.Parse("Hostname: OLD-PC","old.txt",DateTimeOffset.UtcNow).DetailSections.Count>0,"Legacy sparse report");
 if(args.Length>0){var real=parser.Parse(File.ReadAllText(args[0]),args[0],DateTimeOffset.UtcNow);Check(real.DetailSections.Count>30,"Real report sections");Console.WriteLine($"Local report: {real.DetailSections.Count} sections, {real.DetailSections.Sum(s=>s.Rows.Count)} fields");}
 Console.WriteLine($"PASS: {checks} checks");
+
+// Integration tests use isolated disposable SQLite files, never a user's database.
+var temp=Path.Combine(Path.GetTempPath(),"cedx-tests-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(temp);
+try{
+ var file=Path.Combine(temp,"scan.txt");File.WriteAllText(file,report);File.SetLastWriteTimeUtc(file,DateTime.UtcNow.AddMinutes(-2));
+ var store=new Cedx.Core.Storage.InventoryDatabase(Path.Combine(temp,"inventory.db"));
+ Check(store.Import([file]).Added==1,"Database import");
+ var saved=store.Load().Single();
+ var assignment=new Cedx.Core.Storage.AssetAssignment("Sample company","Sample person","Engineering","Room 2","A-001","line one\nline two");
+ store.SaveAssignment(saved.AssetId,assignment);
+ Check(store.Import([file]).Unchanged==1,"Duplicate scan not duplicated");
+ File.AppendAllText(file,"\n=== New section ===\nValue : Added field\n");File.SetLastWriteTimeUtc(file,DateTime.UtcNow);
+ Check(store.Import([file]).Updated==1,"Updated scan");
+ var reopened=new Cedx.Core.Storage.InventoryDatabase(store.Path).Load().Single();
+ Check(reopened.Assignment==assignment&&reopened.IsManaged,"Assignment survives import and reopen");
+ Check(reopened.RevisionCount==2,"Scan revisions persisted");
+ var utf16=Path.Combine(temp,"unicode.txt");File.WriteAllText(utf16,report.Replace("LAB-01","LAB-UTF16"),System.Text.Encoding.Unicode);
+ Check(store.Import([utf16]).Added==1&&store.Load().Any(x=>x.Hostname=="LAB-UTF16"),"UTF16 BOM decoded");
+ var invalid=Path.Combine(temp,"notes.txt");File.WriteAllText(invalid,"This is documentation and is not an asset scan.");
+ Check(store.Import([invalid]).Errors==1&&store.Load().Count==2,"Reject unrelated TXT with reason");
+ var old=Path.Combine(temp,"older.txt");File.WriteAllText(old,report+"\nOlder revision\n");File.SetLastWriteTimeUtc(old,DateTime.UtcNow.AddDays(-10));
+ store.Import([old]);Check(store.Load().Single(x=>x.AssetId==saved.AssetId).RawContent.Contains("Added field"),"Older report does not overwrite current");
+ var backup=Path.Combine(temp,"backup.db");store.Backup(backup);Check(new Cedx.Core.Storage.InventoryDatabase(backup).Load().Count==2,"Restorable database backup");
+ File.Delete(file);Check(new Cedx.Core.Storage.InventoryDatabase(store.Path).Load().Count==2,"Source removal does not remove stored asset");
+ Console.WriteLine($"PASS: {checks} total parser, filter, persistence and import checks");
+}finally{Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();Directory.Delete(temp,true);}

@@ -1,0 +1,47 @@
+Hostname: DEMO-DESIGN
+PC Domain: DEMO
+Windows account: DEMO\user1
+IP Address: 192.0.2.1
+System Manufacturer: Demo manufacturer
+System Model: DESIGN workstation
+Serial Number: DEMO-0001
+OS Version: Microsoft Windows 11 Pro
+CPU: Demo processor, 8 cores
+RAM: 64 GB
+GPU: Demo graphics
+AnyDesk ID: Not installed
+Network Configuration:
+Network Mode: DHCP
+DNS Servers: 192.0.2.254
+Default Gateway: 192.0.2.254
+
+OS Activation:
+Licensed
+
+Antivirus:
+Microsoft Defender
+
+Local User Accounts:
+user1
+
+Bitlocker Status:
+C: Protection: On, Encryption: FullyEncrypted
+
+=== Local Disks (Space & Type) ===
+C: Total: 1048576 MB, Free: 184320 MB, Type: SSD
+
+=== Asset inventory extensions ===
+Installed Programs:
+Inventor
+Vault Client
+
+=== Local account details ===
+Name : user1
+Enabled : True
+
+=== Defender status ===
+AntivirusEnabled : True
+RealTimeProtectionEnabled : True
+
+=== Collector details ===
+Source : Synthetic demonstration data. Not a real computer.

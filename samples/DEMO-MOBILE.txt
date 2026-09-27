@@ -1,0 +1,47 @@
+Hostname: DEMO-MOBILE
+PC Domain: DEMO
+Windows account: DEMO\user3
+IP Address: 192.0.2.3
+System Manufacturer: Demo manufacturer
+System Model: MOBILE workstation
+Serial Number: DEMO-0003
+OS Version: Microsoft Windows 11 Pro
+CPU: Demo processor, 8 cores
+RAM: 32 GB
+GPU: Demo graphics
+AnyDesk ID: Not installed
+Network Configuration:
+Network Mode: DHCP
+DNS Servers: 192.0.2.254
+Default Gateway: 192.0.2.254
+
+OS Activation:
+Licensed
+
+Antivirus:
+Microsoft Defender
+
+Local User Accounts:
+user3
+
+Bitlocker Status:
+C: Protection: On, Encryption: FullyEncrypted
+
+=== Local Disks (Space & Type) ===
+C: Total: 1048576 MB, Free: 76800 MB, Type: SSD
+
+=== Asset inventory extensions ===
+Installed Programs:
+Microsoft 365
+Visual Studio Code
+
+=== Local account details ===
+Name : user3
+Enabled : True
+
+=== Defender status ===
+AntivirusEnabled : True
+RealTimeProtectionEnabled : True
+
+=== Collector details ===
+Source : Synthetic demonstration data. Not a real computer.

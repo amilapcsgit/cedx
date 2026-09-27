@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\Cedx.Core\Cedx.Core.csproj" />
@@ -12,4 +12,6 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
+  <ItemGroup><Content Include="../../samples/*.txt" Link="samples/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" /></ItemGroup>
 </Project>
+

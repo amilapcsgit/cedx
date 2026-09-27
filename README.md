@@ -1,83 +1,67 @@
-# CEDX advanced desktop branch
+# CEDX · Windows asset workspace
 
-Double-click **Build-and-Run-CEDX.bat** to compile and launch the Windows application. See [advanced desktop usage](ADVANCED-DESKTOP.md) for requirements, features and validation.
+A native WPF inventory application for turning collector TXT reports into a maintained asset register. This branch is `cedxadnacedexe`, based on `cedxadvanced`.
 
-# CEDX Asset Manager
+## Run in one click
 
-Windows-native IT asset inventory console for local `.txt` scan files. The current WPF branch is focused on the Head of IT call workflow: quickly identify the caller's PC/user and connect through AnyDesk.
+1. Download **this entire branch** and extract it, or clone and check out `cedxadnacedexe`.
+2. Install the **.NET 8 SDK for Windows x64** if it is not already installed.
+3. Double-click **Build-and-Run-CEDX.bat**. The first build needs internet access to restore .NET and SQLite packages.
+4. Choose **Import folder** for your existing TXT directory, or **Import TXT files** for individual reports. Dragging TXT files or folders into the window also works.
 
-## Current UI
+The BAT compiles a self-contained Windows x64 application into `artifacts\cedxadnacedexe`. Keep that entire folder together. After the first build, launch `Cedx.App.exe` directly; the destination PC does not need a separate .NET runtime. Close the application before rebuilding. Build diagnostics are saved in `artifacts\build.log`; `--build-only` skips launch.
 
-![CEDX advanced liquid glass asset console](screenshots/cedxadvanced-overview.png)
+## Actual desktop UI
 
-The WPF app now uses a liquid-glass Windows desktop shell with:
+These are WPF renders from the Windows validation workflow, using only synthetic sample data.
 
-- tile-first PC lookup for fast caller support,
-- prominent hostname, Windows user, OS, IP address, and AnyDesk ID on each tile,
-- one-click AnyDesk launch from every tile and from the selected asset strip,
-- copy buttons for AnyDesk ID, Windows account, IP, hostnames, and WinRM command text,
-- responsive tile packing that expands filtered results instead of leaving empty grid lanes,
-- custom dark scrollbars, inputs, combo boxes, checkboxes, and glass buttons,
-- range filters for RAM and C: free space, plus quick filters for AnyDesk, BitLocker, credentials, and low storage,
-- explicit Nmap status scanning with retained raw output in the selected asset details,
-- a right-side asset detail panel for identity, remote access, hardware, OS, network, security, and software fields,
-- a collapsible dense inventory table for audit-style scanning.
+![Inventory cards and asset overview](docs/screenshots/01-inventory.png)
 
-## Caller Lookup
+![Manage an asset assignment](docs/screenshots/02-manage-asset.png)
 
-![Filtered caller lookup](screenshots/liquidglass-filtered-lookup.png)
+![Structured collector data](docs/screenshots/03-scan-details.png)
 
-Use the lookup box to search by PC name, Windows user, domain account, IP address, AnyDesk ID, OS, hardware, installed software, printer name, or source file name. Search and filters run in memory after refresh, so the app does not reparse files while you narrow results during a call.
+![Compact asset workspace](docs/screenshots/04-compact.png)
 
-The screenshots use the sanitized sample files in `assets`. Real deployments can use an `assets` folder or fall back to a local `Database` folder.
+## Import, manage, update
 
-## Advanced Operations
+1. **Import.** All TXT files in the chosen folder and its subfolders are considered. UTF-8, UTF-8 BOM, UTF-16 LE/BE BOM and legacy single-byte reports are supported. Non-inventory TXT files are rejected with a visible reason. The expandable import log lists each file and result.
+2. **Review.** Cards and the sortable inventory table share the same selection. Search covers collected data plus company, person, department, location, tag and notes. Counts show visible versus stored assets. Reset filters restores broad numeric ranges so later machines with more RAM or larger disks are not hidden.
+3. **Promote.** Open a scan, select **Manage**, enter company, person, department, location/room, asset tag, lifecycle and notes, then choose **Save as managed asset**. It moves from Scan inbox into Managed assets.
+4. **Update.** Import another scan of the same computer. Manual assignments remain intact. Identical content is not duplicated; changed content creates a revision. Older scans are retained in History without replacing the latest snapshot.
+5. **Monitor.** **Watch folder** watches the selected directory recursively. Newly created, changed and renamed TXT files trigger a debounced import. F5 rescans the folder and reloads the database. A folder that is temporarily unavailable does not remove stored assets.
+6. **Export.** Export the filtered inventory as CSV or JSON, installed software as CSV, selected technical fields as CSV, or a stored scan as TXT. Clipboard actions and Ctrl+C on grid cells are available.
 
-- `Scan Status` runs Nmap against loaded asset IPs and updates each tile status.
-- The selected asset panel keeps the Nmap output for troubleshooting failed responses.
-- `Export CSV` exports the filtered asset inventory with network and security fields.
-- `Export Software` exports one CSV row per installed program when scan files contain an `Installed Programs:` section.
-- The parser supports both current `Local Disks (Space & Type)` reports and older `Local Disks (in MB)` reports.
-- Future scanner output can include `MAC Address:` under `Network Configuration`; the app will parse and search it.
+Draft assignment edits survive selection changes within the session. They are committed only with Save; closing with unsaved edits prompts before discarding them. Ctrl+S saves the selected assignment, Ctrl+F focuses search, F5 refreshes.
 
-## Build
+## Built-in database
 
-```powershell
-dotnet build .\Cedx.sln
-```
+CEDX uses embedded **SQLite**, not a database server. It is a single-user local workspace.
 
-## Run
+- Database: `%LOCALAPPDATA%\cedx\assets.db`
+- Appearance and last source folder: `%LOCALAPPDATA%\cedx\workspace.json`
+- The database contains current raw scans, manual assignments and scan revision history. The app can reopen assets even if the original TXT files have moved or disappeared.
+- **Backup database** creates a consistent SQLite backup. To restore, close CEDX, preserve the current database as a rollback copy, and replace `assets.db` with your backup. Reopen CEDX and verify asset count and assignments.
+- Matching uses case-insensitive hostname, domain and non-placeholder serial number. It deliberately does not match by IP. Changed hostnames, domains or serial numbers can create a separate asset; review the import log rather than silently merging different devices.
+- TXT input is not executed. Nothing is uploaded by CEDX. Local database files and exported reports contain inventory and license information and should be stored accordingly.
 
-```powershell
-dotnet run --project .\src\Cedx.App\Cedx.App.csproj
-```
+Product keys are masked by default in technical views and exports. **Reveal license keys for selected asset** applies to the selected asset and resets on selection change. SQLite backups preserve the original data, including keys; they are not encrypted. JSON is an export format, not a database restore format.
 
-The app looks for an `assets` folder first. If `assets` does not exist, it falls back to the current `Database` folder. `Database` is intentionally ignored by Git because it can contain private network asset data.
+## Samples and layouts
 
-## Parser Smoke Check
+Six clearly labeled synthetic scans are bundled in `samples/`. A fresh empty workspace loads them automatically if no real scans are found. **Load demo samples** makes them available later. Demo samples have their own navigation entry and are excluded from All assets when real assets exist.
 
-```powershell
-dotnet run --project .\tools\Cedx.ParserSmoke\Cedx.ParserSmoke.csproj -- .\assets
-```
+Wide windows show a resizable inspector alongside the cards. Compact windows keep the card list usable and open details as a full-width workspace within the content area; the close button returns to cards. Accent, card size and inspector width are customizable. Tabs divide Overview, Manage, Scan data and History, so technical fields do not crowd the assignment form.
 
-Use `.\Database` instead of `.\assets` when validating private local inventory files. The smoke check loads asset `.txt` files and reports parsed RAM, C: free space, MAC address, stored credential, WinRM, and installed-program counts.
+AnyDesk requires a local AnyDesk URI handler. Nmap is optional, runs only when requested, and targets valid IP addresses in the filtered set. Live integrations must be verified on the target network. WinRM is a copyable command only.
 
-## Native App Status
+## Verification and source layout
 
-The current WPF slice includes:
+- `src/Cedx.Core`: legacy and extended TXT parsing, import validation, SQLite persistence, revision history and filtering.
+- `src/Cedx.App`: native WPF application, attached collection view replacement, filesystem watcher, assignment editor and export commands.
+- `tests/Cedx.Tests`: parser, query, key masking, encoding, transactional imports, deduplication, older-scan handling, assignment persistence and backup checks.
+- `tests/Cedx.WpfSmoke`: opens the real WPF window, loads every repository example through Refresh, adds a nested report while watching, saves an assignment, imports an update, reopens storage and checks empty/filtered selections. It renders wide and compact layouts using synthetic data only.
 
-- tile-first caller lookup,
-- one-click AnyDesk connection from each PC tile,
-- selected asset quick-connect strip,
-- dense inventory table as a collapsible audit view,
-- global search across PC, user, IP, AnyDesk, OS, hardware, software, and printer fields,
-- OS/manufacturer/status filters,
-- RAM range, C: free range, low storage, AnyDesk, BitLocker Off, and stored credential filters,
-- Nmap status scanning with per-asset raw output,
-- selected asset details panel,
-- inventory CSV and software CSV export,
-- copy commands,
-- AnyDesk URI launch.
+Run `dotnet run --project tests/Cedx.Tests -c Release` and, on Windows, `dotnet run --project tests/Cedx.WpfSmoke -c Release` from the repository root. GitHub Actions also runs the user's BAT in build-only mode. Rendered screenshots and build logs are retained as workflow artifacts.
 
-The previous Python/Streamlit files are intentionally preserved until the native app fully replaces them.
-
+The original `cedxadvanced` branch is unchanged. To roll back the application, use that branch in a separate checkout. Keep a database backup before replacing newer builds. Legacy Python/Streamlit sources remain in the repository for reference.

@@ -17,11 +17,11 @@ public sealed class FileAssetRepository(IAssetParser parser) : IAssetRepository
             return [];
         }
 
-        var files = Directory.EnumerateFiles(folderPath, "*.txt", SearchOption.TopDirectoryOnly)
+        var files = Directory.EnumerateFiles(folderPath, "*.txt", SearchOption.AllDirectories)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        var gate = new SemaphoreSlim(Math.Max(2, Environment.ProcessorCount));
+        using var gate = new SemaphoreSlim(Math.Max(2, Environment.ProcessorCount));
         var tasks = files.Select(file => LoadFileAsync(file, gate, cancellationToken)).ToArray();
         var records = await Task.WhenAll(tasks).ConfigureAwait(false);
 
@@ -67,8 +67,11 @@ public sealed class FileAssetRepository(IAssetParser parser) : IAssetRepository
         }
     }
 
-    private static string Decode(byte[] bytes)
+    public static string Decode(byte[] bytes)
     {
+        if (bytes.Length >= 2 && bytes[0] == 0xff && bytes[1] == 0xfe) return Encoding.Unicode.GetString(bytes, 2, bytes.Length - 2);
+        if (bytes.Length >= 2 && bytes[0] == 0xfe && bytes[1] == 0xff) return Encoding.BigEndianUnicode.GetString(bytes, 2, bytes.Length - 2);
+        if (bytes.Length >= 3 && bytes[0] == 0xef && bytes[1] == 0xbb && bytes[2] == 0xbf) return Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
         try
         {
             return StrictUtf8.GetString(bytes);
@@ -79,3 +82,4 @@ public sealed class FileAssetRepository(IAssetParser parser) : IAssetRepository
         }
     }
 }
+

@@ -3,11 +3,12 @@ on:
   push:
     branches: [cedxadnacedexe]
   pull_request:
-    paths: ['src/**', 'tests/**', 'Build-and-Run-CEDX.bat', '.github/workflows/cedx-desktop.yml']
+    paths: ['src/**', 'tests/**', 'samples/**', 'Build-and-Run-CEDX.bat', '.github/workflows/cedx-desktop.yml']
   workflow_dispatch:
 jobs:
   windows:
     runs-on: windows-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4

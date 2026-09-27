@@ -1,32 +1,17 @@
 namespace Cedx.Core.Services;
-
 public static class AssetFolderLocator
 {
     public static string FindDefaultFolder(params string[] startDirectories)
     {
-        foreach (var startDirectory in startDirectories.Where(directory => !string.IsNullOrWhiteSpace(directory)).Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var start in startDirectories.Where(s=>!string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            var current = new DirectoryInfo(startDirectory);
-            while (current is not null)
-            {
-                var assets = Path.Combine(current.FullName, "Database");
-                if (Directory.Exists(assets))
+            for(var current=new DirectoryInfo(start);current is not null;current=current.Parent)
+                foreach(var name in new[]{"Database","assets"})
                 {
-                    return assets;
+                    var folder=Path.Combine(current.FullName,name);
+                    if(Directory.Exists(folder)&&Directory.EnumerateFiles(folder,"*.txt",SearchOption.AllDirectories).Any())return folder;
                 }
-
-                var database = Path.Combine(current.FullName, "assets");
-                if (Directory.Exists(database))
-                {
-                    return database;
-                }
-
-                current = current.Parent;
-            }
         }
-
-        var fallbackRoot = startDirectories.FirstOrDefault(directory => !string.IsNullOrWhiteSpace(directory)) ?? Environment.CurrentDirectory;
-        return Path.Combine(fallbackRoot, "Database");
+        return Path.Combine(startDirectories.FirstOrDefault()??Environment.CurrentDirectory,"Database");
     }
 }
-

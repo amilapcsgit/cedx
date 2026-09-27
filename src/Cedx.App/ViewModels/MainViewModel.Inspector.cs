@@ -12,7 +12,6 @@ namespace Cedx.App.ViewModels;
 
 public sealed partial class MainViewModel
 {
-    private bool _rangesInitialized;
     private bool _includeUnknownMeasurements=true;
     private string _filterValidation="";
     private string _detailCategory="All";
@@ -50,27 +49,27 @@ public sealed partial class MainViewModel
     public string SortMode {get=>_sortMode;set{if(SetProperty(ref _sortMode,value))ApplySort();}}
     public string RawDetail=>Display(SelectedDetailSection?.RawContent ?? "");
     public string RawAsset=>Display(SelectedAsset?.RawContent ?? "");
-    public double SavedDetailsWidth {get;set;}=520;
+    public double SavedDetailsWidth {get;set;}=440;
     public double SavedDetailsHeight {get;set;}=420;
     public double SavedWindowWidth {get;set;}=1540;
     public double SavedWindowHeight {get;set;}=920;
 
-    private void InitializeInspector()
+    private void InitializeInspector(bool loadPreferences)
     {
         ChooseFolderCommand=new RelayCommand(_=>{
             var dialog=new OpenFolderDialog {Title="Select the folder containing asset TXT reports",InitialDirectory=Directory.Exists(AssetsFolderPath)?AssetsFolderPath:Environment.CurrentDirectory};
-            if(dialog.ShowDialog()==true){AssetsFolderPath=dialog.FolderName;RefreshCommand.Execute(null);}
+            if(dialog.ShowDialog()==true){AssetsFolderPath=dialog.FolderName;ResetFilters();RefreshCommand.Execute(null);}
         });
         OpenSourceCommand=new RelayCommand(_=>{
             if(SelectedAsset is null)return;
-            try{var p=new ProcessStartInfo("notepad.exe"){UseShellExecute=false};p.ArgumentList.Add(SelectedAsset.SourceFilePath);Process.Start(p);}
+            try{var p=new ProcessStartInfo("notepad.exe"){UseShellExecute=false};var temporary=Path.Combine(Path.GetTempPath(), "cedx_report_"+SelectedAsset.AssetId+".txt");File.WriteAllText(temporary, SelectedAsset.RawContent);p.ArgumentList.Add(temporary);Process.Start(p);}
             catch(Exception ex){StatusMessage="Open report failed: "+ex.Message;}
         },_=>SelectedAsset is not null);
         CopyDetailRowsCommand=new RelayCommand(_=>CopyText(string.Join(Environment.NewLine,DetailRows.Select(r=>$"{r.Record}\t{r.Field}\t{r.Value}"))),_=>DetailRows.Count>0);
         ExportDetailRowsCommand=new RelayCommand(_=>ExportDetailRows(),_=>DetailRows.Count>0);
-        ResetLayoutCommand=new RelayCommand(_=>{TileMinimumWidth=280;ShowFilters=true;Accent="Ion cyan";SavedDetailsWidth=520;SavedDetailsHeight=420;OnPropertyChanged(nameof(SavedDetailsWidth));});
+        ResetLayoutCommand=new RelayCommand(_=>{TileMinimumWidth=280;ShowFilters=true;ShowInspector=true;Accent="Ion cyan";SavedDetailsWidth=440;SavedDetailsHeight=420;OnPropertyChanged(nameof(SavedDetailsWidth));});
         try{
-            if(File.Exists(PreferencesPath)){
+            if(loadPreferences && File.Exists(PreferencesPath)){
                 var p=JsonSerializer.Deserialize<WorkspacePreferences>(File.ReadAllText(PreferencesPath));
                 if(p is not null){
                     if(Directory.Exists(p.AssetsFolderPath))AssetsFolderPath=p.AssetsFolderPath;
@@ -87,7 +86,7 @@ public sealed partial class MainViewModel
     {
         _revealKeys=false;_detailSearch="";
         OnPropertyChanged(nameof(RevealKeys));OnPropertyChanged(nameof(DetailSearch));OnPropertyChanged(nameof(HasSelection));
-        RefreshInspector();OpenSourceCommand?.RaiseCanExecuteChanged();
+        RefreshInspector();LoadAssignmentDraft();OpenSourceCommand?.RaiseCanExecuteChanged();
     }
     private void RefreshInspector()
     {
@@ -114,13 +113,13 @@ public sealed partial class MainViewModel
     }
     private void ApplySort()
     {
+        if (_updatingAssets) return;
         var (property,descending)=SortMode switch {
             "Windows account"=>(nameof(AssetRecord.WindowsAccount),false),"C: free ascending"=>(nameof(AssetRecord.CDriveFreeGb),false),
             "RAM descending"=>(nameof(AssetRecord.RamGb),true),_=>(nameof(AssetRecord.Hostname),false)};
-        using(AssetsView.DeferRefresh()){
-            AssetsView.SortDescriptions.Clear();AssetsView.SortDescriptions.Add(new(property,descending?System.ComponentModel.ListSortDirection.Descending:System.ComponentModel.ListSortDirection.Ascending));
-            if(property!=nameof(AssetRecord.Hostname))AssetsView.SortDescriptions.Add(new(nameof(AssetRecord.Hostname),System.ComponentModel.ListSortDirection.Ascending));
-        }
+        AssetsView.SortDescriptions.Clear();
+        AssetsView.SortDescriptions.Add(new(property,descending?System.ComponentModel.ListSortDirection.Descending:System.ComponentModel.ListSortDirection.Ascending));
+        if(property!=nameof(AssetRecord.Hostname))AssetsView.SortDescriptions.Add(new(nameof(AssetRecord.Hostname),System.ComponentModel.ListSortDirection.Ascending));
         EnsureVisibleSelection();UpdateCounts();
     }
     private void ExportDetailRows()

@@ -6,6 +6,8 @@ namespace Cedx.Core.Parsing;
 
 public sealed partial class AssetTextParser : IAssetParser
 {
+    public static bool IsInventoryReport(string content) => Regex.IsMatch(content, @"(?im)^\s*(Hostname|Computer Name|Windows account|IP Address|System Manufacturer|OS Version)\s*:") && content.Trim().Length > 20;
+
     public AssetRecord Parse(string content, string sourceFilePath, DateTimeOffset lastModified)
     {
         ArgumentNullException.ThrowIfNull(content);

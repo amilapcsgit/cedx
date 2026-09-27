@@ -10,14 +10,13 @@ using System.Windows.Data;
 using Cedx.App.Common;
 using Cedx.Core.Models;
 using Cedx.Core.Services;
+using Cedx.Core.Storage;
 using Microsoft.Win32;
 
 namespace Cedx.App.ViewModels;
 
 public sealed partial class MainViewModel : ObservableObject
 {
-    private readonly IAssetRepository _repository;
-    private CancellationTokenSource? _loadCts;
     private AssetRecord? _selectedAsset;
     private string _searchText = string.Empty;
     private string _selectedOsFilter = AllFilter;
@@ -29,9 +28,9 @@ public sealed partial class MainViewModel : ObservableObject
     private bool _hasStoredCredentialsOnly;
     private double _lowStorageThresholdGb = 10d;
     private double _minRamFilterGb;
-    private double _maxRamFilterGb = 512d;
+    private double _maxRamFilterGb = 1048576d;
     private double _minStorageFilterGb;
-    private double _maxStorageFilterGb = 5000d;
+    private double _maxStorageFilterGb = 1048576d;
     private string _anyDeskFilter = string.Empty;
     private bool _isBusy;
     private bool _isNetworkScanBusy;
@@ -60,19 +59,14 @@ public sealed partial class MainViewModel : ObservableObject
     private bool _updatingAssets;
     private const string AllFilter = "All";
 
-    public MainViewModel(IAssetRepository repository)
+    public MainViewModel(IAssetRepository repository, InventoryDatabase? database = null, bool loadPreferences = true)
     {
-        _repository = repository;
+        _database = database ?? new InventoryDatabase(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "cedx", "assets.db"));
         _assetsFolderPath = AssetFolderLocator.FindDefaultFolder(Environment.CurrentDirectory, AppContext.BaseDirectory);
 
         AssetsView = CollectionViewSource.GetDefaultView(Assets);
         AssetsView.Filter = FilterAsset;
         AssetsView.SortDescriptions.Add(new SortDescription(nameof(AssetRecord.Hostname), ListSortDirection.Ascending));
-
-        if (AssetsView is INotifyCollectionChanged notifyCollectionChanged)
-        {
-            notifyCollectionChanged.CollectionChanged += (_, _) => UpdateCounts();
-        }
 
         OsOptions.Add(AllFilter);
         ManufacturerOptions.Add(AllFilter);
@@ -94,11 +88,12 @@ public sealed partial class MainViewModel : ObservableObject
         ConnectSelectedAnyDeskCommand = new RelayCommand(_ => LaunchAnyDesk(SelectedAsset?.AnyDeskId), _ => CanLaunchAnyDesk(SelectedAsset?.AnyDeskId));
         ClearSearchCommand = new RelayCommand(_ => SearchText = string.Empty, _ => !string.IsNullOrWhiteSpace(SearchText));
         ResetFiltersCommand = new RelayCommand(_ => ResetFilters());
-        InitializeInspector();
+        InitializeInspector(loadPreferences);
+        InitializeInventory();
     }
 
-    public ObservableCollection<AssetRecord> Assets { get; } = [];
-    public ICollectionView AssetsView { get; }
+    public ObservableCollection<AssetRecord> Assets { get; private set; } = [];
+    public ICollectionView AssetsView { get; private set; }
     public ObservableCollection<string> OsOptions { get; } = [];
     public ObservableCollection<string> ManufacturerOptions { get; } = [];
     public ObservableCollection<string> StatusOptions { get; } = [];
@@ -305,6 +300,7 @@ public sealed partial class MainViewModel : ObservableObject
             if (SetProperty(ref _isBusy, value))
             {
                 ScanNetworkCommand.RaiseCanExecuteChanged();
+                InventoryCommandsChanged();
             }
         }
     }
@@ -450,51 +446,57 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task RefreshAsync()
     {
-        _loadCts?.Cancel();
-        _loadCts?.Dispose();
-        _loadCts = new CancellationTokenSource();
-        var cancellationToken = _loadCts.Token;
-
+        if (IsBusy) { _reloadPending = true; return; }
         IsBusy = true;
-        var selectedPath = SelectedAsset?.SourceFilePath;
-        StatusMessage = "Loading assets";
         try
         {
-            var records = await Task.Run(async () => await _repository.LoadAsync(AssetsFolderPath, cancellationToken).ConfigureAwait(false), cancellationToken)
-                .ConfigureAwait(true);
-
-            if (cancellationToken.IsCancellationRequested) return;
-            _updatingAssets = true;
-            using (AssetsView.DeferRefresh())
+            var selectedId = SelectedAsset?.AssetId;
+            if (Directory.Exists(AssetsFolderPath))
             {
-                Assets.Clear();
-                foreach (var record in records) Assets.Add(record);
+                var paths = InventoryFiles(AssetsFolderPath);
+                var batch = await Task.Run(() => _database.Import(paths));
+                ShowImportResult(batch);
             }
+            var records = await Task.Run(() => _database.Load());
+            if (records.Count == 0)
+            {
+                var samples = Path.Combine(AppContext.BaseDirectory, "samples");
+                if (Directory.Exists(samples))
+                {
+                    await Task.Run(() => _database.Import(InventoryFiles(samples), true));
+                    records = await Task.Run(() => _database.Load());
+                }
+            }
+            ReplaceAssets(records, selectedId);
+            StartFolderWatcher();
+            LastRefreshText = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            StatusMessage = $"{Assets.Count} assets in local database. {LastImportSummary}";
+        }
+        catch (Exception ex) { StatusMessage = "Load failed: " + ex.Message; }
+        finally { IsBusy = false; if (_reloadPending) { _reloadPending = false; await RefreshAsync(); } }
+    }
 
-            _updatingAssets = false;
+    private void ReplaceAssets(IReadOnlyList<AssetRecord> records, string? selectedId)
+    {
+        // Build a detached view, then publish it once. Never mutate a collection
+        // bound to two selectors inside DeferRefresh: WPF selection reads its view.
+        _updatingAssets = true;
+        try
+        {
+            Assets = new ObservableCollection<AssetRecord>(records);
             RebuildFilterOptions();
-            if (!_rangesInitialized) { SetRangeDefaultsFromAssets(); _rangesInitialized = true; }
-            SelectedAsset = Assets.FirstOrDefault(a => a.SourceFilePath == selectedPath);
-            LastRefreshText = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-            StatusMessage = $"Loaded {Assets.Count} assets";
-            ApplyFilters();
-            ExportCsvCommand.RaiseCanExecuteChanged();
-            ExportSoftwareCsvCommand.RaiseCanExecuteChanged();
-            ScanNetworkCommand.RaiseCanExecuteChanged();
+            RebuildOrganizationFilters();
+            var view = new ListCollectionView(Assets);
+            view.Filter = FilterAsset;
+            view.SortDescriptions.Add(new SortDescription(nameof(AssetRecord.Hostname), ListSortDirection.Ascending));
+            AssetsView = view;
         }
-        catch (OperationCanceledException)
-        {
-            StatusMessage = "Load canceled";
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = "Load failed: " + ex.Message;
-        }
-        finally
-        {
-            _updatingAssets = false;
-            IsBusy = false;
-        }
+        finally { _updatingAssets = false; }
+        OnPropertyChanged(nameof(Assets)); OnPropertyChanged(nameof(AssetsView));
+        SelectedAsset = Assets.FirstOrDefault(a => a.AssetId == selectedId);
+        ApplySort(); ApplyFilters();
+        OnPropertyChanged(nameof(ManagedCount)); OnPropertyChanged(nameof(InboxCount)); OnPropertyChanged(nameof(DemoCount));
+        ExportCsvCommand.RaiseCanExecuteChanged(); ExportSoftwareCsvCommand.RaiseCanExecuteChanged(); ScanNetworkCommand.RaiseCanExecuteChanged();
     }
 
     private async Task ScanNetworkStatusAsync()
@@ -670,7 +672,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    private bool FilterAsset(object item) => item is AssetRecord asset && CurrentQuery().Matches(asset);
+    private bool FilterAsset(object item) => item is AssetRecord asset && CurrentQuery().Matches(asset) && MatchesInventoryFilters(asset);
 
     private AssetQuery CurrentQuery() => new()
     {
@@ -682,6 +684,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void ApplyFilters()
     {
+        if (_updatingAssets) return;
         foreach(var asset in Assets) asset.LowStorageThresholdGb = LowStorageThresholdGb;
         FilterValidation=CurrentQuery().Validation;
         AssetsView.Refresh();
@@ -741,8 +744,8 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void SetRangeDefaultsFromAssets()
     {
-        var maxRam = Assets.Select(asset => asset.RamGb ?? 0d).DefaultIfEmpty(0d).Max();
-        var maxStorage = Assets.Select(asset => asset.CDriveFreeGb ?? 0d).DefaultIfEmpty(0d).Max();
+        var maxRam = 1048576d;
+        var maxStorage = 1048576d;
 
         _minRamFilterGb = 0d;
         _maxRamFilterGb = Math.Max(16d, Math.Ceiling(maxRam));
@@ -807,6 +810,8 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void ResetFilters()
     {
+        _companyFilter = "All"; _departmentFilter = "All"; _inventoryScope = "All assets";
+        OnPropertyChanged(nameof(CompanyFilter)); OnPropertyChanged(nameof(DepartmentFilter)); OnPropertyChanged(nameof(InventoryScope));
         _searchText = string.Empty;
         _includeUnknownMeasurements = true;
         OnPropertyChanged(nameof(IncludeUnknownMeasurements));
@@ -882,12 +887,13 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         var builder = new StringBuilder();
-        AppendCsvRow(builder, "Hostname", "IP Address", "MAC Address", "Windows Account", "OS Version", "Manufacturer", "Model", "Serial Number", "CPU", "RAM GB", "C Free GB", "AnyDesk ID", "Antivirus", "BitLocker summary", "Network Mode", "Gateway", "DNS", "Online Status", "Source File");
+        AppendCsvRow(builder, "Company", "Person", "Department", "Location", "Asset Tag", "Managed", "Hostname", "IP Address", "MAC Address", "Windows Account", "OS Version", "Manufacturer", "Model", "Serial Number", "CPU", "RAM GB", "C Free GB", "AnyDesk ID", "Antivirus", "BitLocker summary", "Network Mode", "Gateway", "DNS", "Online Status", "Source File");
 
         foreach (var asset in AssetsView.Cast<AssetRecord>())
         {
             AppendCsvRow(
                 builder,
+                asset.Company, asset.Person, asset.Department, asset.Location, asset.AssetTag, asset.IsManaged.ToString(),
                 asset.Hostname,
                 asset.IpAddress,
                 asset.MacAddress,
