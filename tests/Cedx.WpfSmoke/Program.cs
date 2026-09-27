@@ -45,7 +45,8 @@ internal static class Program
   var demo=new InventoryDatabase(Path.Combine(temp,"demo.db"));demo.Import(Directory.GetFiles("samples","*.txt"),true);
   foreach(var a in demo.Load())demo.SaveAssignment(a.AssetId,new("Demo organization","Sample operator","Engineering","Room 2","DEMO","Synthetic sample for interface preview."));
   var preview=new Cedx.App.MainWindow(false,demo,false);var p=(MainViewModel)preview.DataContext;p.AssetsFolderPath=Path.Combine(temp,"empty");p.WatchFolder=false;Wait(p.RefreshAsync());
-  var root=(FrameworkElement)preview.Content;root.DataContext=p;
+  p.AssetsFolderPath="samples";
+  var root=(FrameworkElement)preview.Content;root.DataContext=p;root.Margin=new Thickness(0);
   Directory.CreateDirectory("artifacts/ui-smoke");
   Layout(root,1560,930);p.ShowInspector=true;Layout(root,1560,930);
   Check(p.FilteredCount==6,"Six sample cards");
