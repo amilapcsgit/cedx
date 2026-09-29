@@ -1,7 +1,7 @@
 name: CEDX desktop validation
 on:
   push:
-    branches: [cedxadnacedexe]
+    branches: [cedxadnacedexe, cedexadvancesui]
   pull_request:
     paths: ['src/**', 'tests/**', 'samples/**', 'Build-and-Run-CEDX.bat', '.github/workflows/cedx-desktop.yml']
   workflow_dispatch:

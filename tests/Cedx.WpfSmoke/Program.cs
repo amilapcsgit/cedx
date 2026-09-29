@@ -22,6 +22,12 @@ internal static class Program
   var originals=Directory.GetFiles("assets","*.txt");
   foreach(var f in originals)File.Copy(f,Path.Combine(source,Path.GetFileName(f)));
   vm.AssetsFolderPath=source;window.Show();Wait(vm.RefreshAsync());Pump();
+  Check(window.Background is not null && window.Background.ToString()!="#FFFFFFFF","Window receives the dark theme explicitly");
+  Check(((FrameworkElement)window.Content).Margin==new Thickness(0),"Client content has no unused outer margin");
+  window.WindowState=WindowState.Maximized;Pump();
+  var client=(FrameworkElement)window.Content;
+  Check(client.TranslatePoint(new Point(0,0),window).X<1,"Maximized content reaches the client edge");
+  window.WindowState=WindowState.Normal;Pump();
   Check(vm.LoadedCount==originals.Length&&vm.FilteredCount==originals.Length,"Every repository example loads through bound UI");
   Check(!vm.StatusMessage.StartsWith("Load failed"),"No deferred refresh exception");
   var template=File.ReadAllText("samples/DEMO-SERVER.txt");
@@ -46,18 +52,18 @@ internal static class Program
   foreach(var a in demo.Load())demo.SaveAssignment(a.AssetId,new("Demo organization","Sample operator","Engineering","Room 2","DEMO","Synthetic sample for interface preview."));
   var preview=new Cedx.App.MainWindow(false,demo,false);var p=(MainViewModel)preview.DataContext;p.AssetsFolderPath=Path.Combine(temp,"empty");p.WatchFolder=false;Wait(p.RefreshAsync());
   p.AssetsFolderPath="samples";
-  var root=(FrameworkElement)preview.Content;root.DataContext=p;root.Margin=new Thickness(0);
+  var root=(FrameworkElement)preview.Content;root.DataContext=p;
   Directory.CreateDirectory("artifacts/ui-smoke");
-  Layout(root,1560,930);p.ShowInspector=true;Layout(root,1560,930);
+  Layout(root,1920,1080);p.ShowInspector=true;Layout(root,1920,1080);
   Check(p.FilteredCount==6,"Six sample cards");
   Check(Grid.GetColumn((Border)preview.FindName("InspectorPanel"))==4,"Wide inspector docking");
   Capture(root,"01-inventory");
-  p.ManageAssetCommand.Execute(null);Layout(root,1560,930);Capture(root,"02-manage-asset");
-  p.InspectorTab=2;p.DetailCategory="Security";p.SelectedDetailSection=p.DetailSections.First(s=>s.Title=="Local account details");Layout(root,1560,930);Capture(root,"03-scan-details");
+  p.ManageAssetCommand.Execute(null);Layout(root,1920,1080);Capture(root,"02-manage-asset");
+  p.InspectorTab=2;p.DetailCategory="Security";p.SelectedDetailSection=p.DetailSections.First(s=>s.Title=="Local account details");Layout(root,1920,1080);Capture(root,"03-scan-details");
   Check(((DataGrid)preview.FindName("DetailGrid")).ActualHeight>150,"Scan detail table visible");
   Layout(root,1040,800);Check(((Grid)preview.FindName("FleetPanel")).Visibility==Visibility.Visible,"Compact cards remain visible");
   p.OpenAssetCommand.Execute(p.SelectedAsset);Layout(root,1040,800);Check(((Border)preview.FindName("InspectorPanel")).ActualWidth>500,"Compact inspector has usable width");Capture(root,"04-compact");
-  p.Accent="Violet";p.TileMinimumWidth=320;p.ShowInspector=false;Layout(root,1560,930);
+  p.Accent="Violet";p.TileMinimumWidth=320;p.ShowInspector=false;Layout(root,1920,1080);
   Console.WriteLine("PASS: bound refresh, all example TXT files, watched folder additions, large RAM, managed assignment, persistence, empty selection and responsive WPF screens");
   p.DisposeWorkspace();Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();Directory.Delete(temp,true);return 0;
  }
