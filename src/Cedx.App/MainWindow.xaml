@@ -330,7 +330,18 @@
                           <TextBlock Text="IP ADDRESS" FontSize="11" Foreground="{StaticResource SubtleTextBrush}"/>
                           <TextBlock Text="{Binding IpAddress}" FontFamily="Consolas" FontSize="13" Margin="0,3" Foreground="{StaticResource AccentBlueBrush}"/>
                           <TextBlock Text="{Binding OsShortDisplay}" FontSize="12" Foreground="{StaticResource SubtleTextBrush}"/>
-                          <TextBlock Text="{Binding AnyDeskActionText}" FontSize="12" Foreground="{StaticResource AccentPinkBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding AnyDeskId}" Margin="0,4,0,0"/>
+                          <TextBlock Text="{Binding AnyDeskActionText}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding AnyDeskId}" Margin="0,4,0,0">
+                            <TextBlock.Style>
+                              <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}"/>
+                                <Style.Triggers>
+                                  <DataTrigger Binding="{Binding HasAnyDesk}" Value="True">
+                                    <Setter Property="Foreground" Value="{StaticResource AccentPinkBrush}"/>
+                                  </DataTrigger>
+                                </Style.Triggers>
+                              </Style>
+                            </TextBlock.Style>
+                          </TextBlock>
                         </StackPanel>
                         <StackPanel Grid.Column="1">
                           <TextBlock Text="{Binding RamDisplay,StringFormat={}RAM  {0}}" FontSize="12"/>
@@ -360,7 +371,7 @@
                           </TextBlock>
                         </StackPanel>
                       </Grid>
-                      <ProgressBar Grid.Row="3" Value="{Binding Converter={StaticResource DiskMeter}}" Visibility="{Binding Converter={StaticResource DiskMeter},ConverterParameter=Visibility}" Maximum="100" Margin="0,3,0,8" ToolTip="C: free space as a percentage of reported capacity">
+                      <ProgressBar Grid.Row="3" Value="{Binding Converter={StaticResource DiskMeter},Mode=OneWay}" Visibility="{Binding Converter={StaticResource DiskMeter},ConverterParameter=Visibility}" Maximum="100" Margin="0,3,0,8" ToolTip="C: free space as a percentage of reported capacity">
                         <ProgressBar.Style>
                           <Style TargetType="ProgressBar" BasedOn="{StaticResource {x:Type ProgressBar}}">
                             <Style.Triggers>
@@ -471,7 +482,7 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                           <TextBlock Text="{Binding Label}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding Label}"/>
-                          <ProgressBar Value="{Binding Percent}" Maximum="100" Foreground="{StaticResource AccentBlueBrush}" Height="3" Margin="0,3,0,2" ToolTip="{Binding Percent,StringFormat={}{0:0.#}% of visible assets}"/>
+                          <ProgressBar Value="{Binding Percent,Mode=OneWay}" Maximum="100" Foreground="{StaticResource AccentBlueBrush}" Height="3" Margin="0,3,0,2" ToolTip="{Binding Percent,StringFormat={}{0:0.#}% of visible assets}"/>
                         </StackPanel>
                         <TextBlock Grid.Column="1" Text="{Binding Count}" HorizontalAlignment="Right" FontSize="12"/>
                       </Grid>
@@ -572,7 +583,7 @@
                               <TextBlock Text="{Binding FreeGb,StringFormat={}{0:0.#} GB free}"/>
                               <TextBlock Text="{Binding TotalGb,StringFormat={} / {0:0.#} GB}" Foreground="{StaticResource SubtleTextBrush}"/>
                             </StackPanel>
-                            <ProgressBar Value="{Binding Converter={StaticResource DiskMeter}}" Visibility="{Binding Converter={StaticResource DiskMeter},ConverterParameter=Visibility}" Maximum="100" Margin="0,8,0,0" ToolTip="Free space / reported capacity"/>
+                            <ProgressBar Value="{Binding Converter={StaticResource DiskMeter},Mode=OneWay}" Visibility="{Binding Converter={StaticResource DiskMeter},ConverterParameter=Visibility}" Maximum="100" Margin="0,8,0,0" ToolTip="Free space / reported capacity"/>
                           </StackPanel>
                         </Border>
                       </DataTemplate>
