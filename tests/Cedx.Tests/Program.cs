@@ -63,6 +63,21 @@ try{
  var reopened=new Cedx.Core.Storage.InventoryDatabase(store.Path).Load().Single();
  Check(reopened.Assignment==assignment&&reopened.IsManaged,"Assignment survives import and reopen");
  Check(reopened.RevisionCount==2,"Scan revisions persisted");
+ // Regression: hardware, disk and network fields after a NUL-padded EDID name
+ // must survive both current-scan loading and history, even on unchanged import.
+ var nulText = "Hostname: LAB-NUL\nWindows account: LAB\\operator\nIP Address: 192.0.2.44\nMonitor Model: LAB DISPLAY\0\0\0\0\nSystem Manufacturer: Lab maker\nSystem Model: Lab board\nSerial Number: Default string\n\nNetwork Configuration:\n    Network Mode: Static (0)\n    DNS Servers: 192.0.2.53\n    Default Gateway: 192.0.2.1\n\nAntivirus:\n  Lab protection\n\n=== Local Disks (Space & Type) ===\n C: Total: 952906 MB, Free: 845510.39 MB, Type: SSD\n";
+ var nulFile=Path.Combine(temp,"nul.txt");File.WriteAllText(nulFile,nulText);
+ var nulStore=new Cedx.Core.Storage.InventoryDatabase(Path.Combine(temp,"nul.db"));
+ Check(nulStore.Import([nulFile]).Added==1,"NUL report imported");
+ var nulAsset=nulStore.Load().Single();
+ Check(nulAsset.RawContent==nulText,"Complete raw report survives SQLite NUL padding");
+ Check(nulAsset.Model=="Lab board"&&nulAsset.Manufacturer=="Lab maker"&&nulAsset.Antivirus=="Lab protection","Fields after monitor survive database round trip");
+ Check(nulAsset.Network.DefaultGateway=="192.0.2.1"&&nulAsset.Network.DnsServers=="192.0.2.53"&&Math.Abs(nulAsset.CDriveFreeGb!.Value-845510.39/1024d)<0.001,"Legacy disk and network values survive database round trip");
+ nulStore.SaveAssignment(nulAsset.AssetId,assignment);
+ Check(nulStore.Import([nulFile]).Unchanged==1&&nulStore.Load().Single().Assignment==assignment,"Existing unchanged scans restore all fields and retain assignment");
+ Check(nulStore.History(nulAsset.AssetId).Single().RawText==nulText,"History preserves complete NUL report");
+ var nulBackup=Path.Combine(temp,"nul-backup.db");nulStore.Backup(nulBackup);
+ Check(new Cedx.Core.Storage.InventoryDatabase(nulBackup).Load().Single().RawContent==nulText,"Backup preserves complete NUL report");
  var utf16=Path.Combine(temp,"unicode.txt");File.WriteAllText(utf16,report.Replace("LAB-01","LAB-UTF16"),System.Text.Encoding.Unicode);
  Check(store.Import([utf16]).Added==1&&store.Load().Any(x=>x.Hostname=="LAB-UTF16"),"UTF16 BOM decoded");
  var invalid=Path.Combine(temp,"notes.txt");File.WriteAllText(invalid,"This is documentation and is not an asset scan.");

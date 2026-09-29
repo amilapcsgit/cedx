@@ -40,11 +40,11 @@ public sealed class InventoryDatabase
     public IReadOnlyList<AssetRecord> Load()
     {
         using var db = Open(); using var c = db.CreateCommand();
-        c.CommandText = "SELECT a.*, (SELECT COUNT(*) FROM revisions r WHERE r.asset_id=a.id) AS revision_count FROM assets a";
+        c.CommandText = "SELECT a.id,a.identity,CAST(a.raw AS BLOB),a.source,a.scanned,a.hash,a.managed,a.sample,a.assignment, (SELECT COUNT(*) FROM revisions r WHERE r.asset_id=a.id) AS revision_count FROM assets a";
         using var reader = c.ExecuteReader(); var records = new List<AssetRecord>();
         while (reader.Read())
         {
-            var record = _parser.Parse(reader.GetString(2), reader.GetString(3), DateTimeOffset.Parse(reader.GetString(4), CultureInfo.InvariantCulture));
+            var record = _parser.Parse(ReadRaw(reader, 2), reader.GetString(3), DateTimeOffset.Parse(reader.GetString(4), CultureInfo.InvariantCulture));
             record.AssetId = reader.GetString(0); record.IsManaged = reader.GetInt32(6) == 1; record.IsSample = reader.GetInt32(7) == 1;
             record.Assignment = JsonSerializer.Deserialize<AssetAssignment>(reader.GetString(8)) ?? new();
             record.RevisionCount = reader.GetInt32(9);
@@ -112,11 +112,17 @@ public sealed class InventoryDatabase
     public IReadOnlyList<ScanRevision> History(string id)
     {
         using var db = Open(); using var c = db.CreateCommand();
-        c.CommandText = "SELECT scanned,source,hash,raw FROM revisions WHERE asset_id=$id ORDER BY scanned DESC"; c.Parameters.AddWithValue("$id", id);
+        c.CommandText = "SELECT scanned,source,hash,CAST(raw AS BLOB) FROM revisions WHERE asset_id=$id ORDER BY scanned DESC"; c.Parameters.AddWithValue("$id", id);
         using var r = c.ExecuteReader(); var rows = new List<ScanRevision>();
-        while (r.Read()) rows.Add(new(r.GetString(0), r.GetString(1), r.GetString(2), r.GetString(3)));
+        while (r.Read()) rows.Add(new(r.GetString(0), r.GetString(1), r.GetString(2), ReadRaw(r, 3)));
         return rows;
     }
+    // The collector can include U+0000 in EDID monitor names. GetString uses a
+    // NUL-terminated native text path; reading explicit UTF-8 bytes preserves the
+    // complete report, including existing TEXT rows, without changing its hash.
+    private static string ReadRaw(SqliteDataReader reader, int ordinal) =>
+        Encoding.UTF8.GetString(reader.GetFieldValue<byte[]>(ordinal));
+
     public void Backup(string destination)
     {
         if (System.IO.Path.GetFullPath(destination).Equals(Path, StringComparison.OrdinalIgnoreCase)) throw new IOException("Choose a different backup file.");
