@@ -8,7 +8,7 @@ The approved reference is the older CEDX screenshot: midnight blue surfaces, blu
 
 1. **Complete, Windows validation passed (`cbeb1e3`, run `36573115411`):** remove unused white client border. Apply the Window style explicitly and remove the 20-DIP root margin. Screenshots must no longer override production margins. Test the shown maximized window and render at 1920 x 1080.
 2. **Complete, Windows validation passed (`7c484d1`, run `36573607274`):** restore the reference palette through reusable resources, readable text sizes, visible keyboard focus and consistent dark controls.
-3. **Complete, Windows validation passed (`c1e1a57`, run `36574605778`):** compact useful tiles, recognizable icons, real filtered inventory indicators, wide and compact layout checks, refreshed screenshots and README.
+3. **Complete, Windows validation passed (`c1e1a57`, run `36574605778`):** compact useful tiles, recognizable icons, real filtered inventory indicators, wide and compact layout checks. Screenshot and README publication is recorded in checkpoint 7.
 
 Each target is a separate commit on this branch. Database, import and assignment behavior remain covered by the existing regression suite. No uploaded screenshots or real inventory details are committed.
 
@@ -22,4 +22,4 @@ Filter-aware metrics and OS bar chart use actual visible scans. Unknown disk cap
 5. **Complete, Windows validation passed (`57040c4`, run `36636854399`):** compact label/value inspector, omit empty assignment rows, restore manufacturer, monitor, OS activation/dates, network mode/MAC and software summaries, reduce tile/chrome height.
 
 6. **Complete, Windows validation passed (`57040c4`, run `36636854399`):** end-to-end WPF reproduction showed truncation also occurred during native TEXT writes. Store UTF-8 BLOB parameters and compare stored bytes when a scan hash is unchanged. Reimport repairs truncated current/history rows while preserving identity, assignment and revision count. Recovery of an already truncated row needs its original TXT. The earlier read-only fix was insufficient; 37 Core checks and the real WPF workflow now pass.
-7. **Implemented, Windows validation pending:** keep summary metrics in a single row at Full-HD 125% scaling, fit three OS chart entries without a needless scrollbar, label C: values as free space, and keep license masking consistent in the compact overview. Documentation screenshots follow after validation.
+7. **Complete, Windows validation passed (`a68c6f7`, run `36637198833`):** keep summary metrics in a single row at Full-HD 125% scaling, fit three OS chart entries without a needless scrollbar, label C: values as free space, and keep license masking consistent in the compact overview. Five fresh screenshots and the README now document this verified build. Cards measure 210 DIP in the synthetic Full-HD render.

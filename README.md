@@ -1,19 +1,31 @@
 # CEDX · Windows asset workspace
 
-A native WPF inventory application for turning collector TXT reports into a maintained asset register. This branch is `cedxadnacedexe`, based on `cedxadvanced`.
+A native WPF inventory application for turning collector TXT reports into a maintained asset register. This branch is `cedexadvancesui`, based on the functional `cedxadnacedexe` workspace.
 
 ## Run in one click
 
-1. Download **this entire branch** and extract it, or clone and check out `cedxadnacedexe`.
+1. Download **this entire branch** and extract it, or clone and check out `cedexadvancesui`.
 2. Install the **.NET 8 SDK for Windows x64** if it is not already installed.
 3. Double-click **Build-and-Run-CEDX.bat**. The first build needs internet access to restore .NET and SQLite packages.
 4. Choose **Import folder** for your existing TXT directory, or **Import TXT files** for individual reports. Dragging TXT files or folders into the window also works.
 
 The BAT compiles a self-contained Windows x64 application into `artifacts\cedxadnacedexe`. Keep that entire folder together. After the first build, launch `Cedx.App.exe` directly; the destination PC does not need a separate .NET runtime. Close the application before rebuilding. Build diagnostics are saved in `artifacts\build.log`; `--build-only` skips launch.
 
+## UI improvements in this branch
+
+- No unused white client border. The Window theme is explicitly applied; content fills the client area in normal and maximized mode.
+- The original CEDX midnight-blue palette is restored: blue/violet glass panels, white hostnames, teal users, blue IPs, magenta remote IDs and amber storage warnings.
+- Hostnames are 22 DIP and owners 16 DIP. Dark inputs, checkboxes, expanders and visible keyboard focus keep controls readable.
+- The Overview inspector uses compact label/value rows for identity, hardware, OS, network and software. Blank assignment rows are omitted; populated assignments remain available and editable in Manage.
+- Cards prioritize AnyDesk and include a Details action, double-click/Enter navigation, Copy user / Copy IP, show actual disk free-space meters when capacity is known, and highlight low-space warnings using the configured threshold.
+- Summary panels and the OS bar chart follow the active filters. An AnyDesk ID means a remote-access identifier was collected; it does not imply the computer is online. Missing measurements are counted explicitly.
+- Accent, card size and inspector width remain customizable in Workspace settings and data tools. The metric strip stays in one row at Full-HD 100% and 125% scaling, and reflows to two columns in narrower panels.
+
+Progress is checkpointed in [docs/UI-PROGRESS.md](docs/UI-PROGRESS.md). Each target has its own branch commit and Windows validation.
+
 ## Actual desktop UI
 
-These are WPF renders from the Windows validation workflow, using only synthetic sample data.
+These are WPF renders from the Windows validation workflow, using only synthetic sample data. Wide renders use 1920 × 1080 with the production layout and margins. A separate render exercises the equivalent Full-HD layout at 125% scaling; actual multi-monitor DPI transitions still need testing on the target PC.
 
 ![Inventory cards and asset overview](docs/screenshots/01-inventory.png)
 
@@ -22,6 +34,8 @@ These are WPF renders from the Windows validation workflow, using only synthetic
 ![Structured collector data](docs/screenshots/03-scan-details.png)
 
 ![Compact asset workspace](docs/screenshots/04-compact.png)
+
+![Full-HD layout at 125 percent](docs/screenshots/05-scale-125.png)
 
 ## Import, manage, update
 
@@ -33,6 +47,12 @@ These are WPF renders from the Windows validation workflow, using only synthetic
 6. **Export.** Export the filtered inventory as CSV or JSON, installed software as CSV, selected technical fields as CSV, or a stored scan as TXT. Clipboard actions and Ctrl+C on grid cells are available.
 
 Draft assignment edits survive selection changes within the session. They are committed only with Save; closing with unsaved edits prompts before discarding them. Ctrl+S saves the selected assignment, Ctrl+F focuses search, F5 refreshes.
+
+## Existing scans with missing hardware or disk data
+
+Some legacy reports contain four NUL characters in the monitor's EDID name. Native text handling could stop at the first NUL during writing or reading, hiding the following manufacturer, model, disk, network and software fields. Some older database rows therefore contain only a prefix of the report.
+
+This branch stores and reads current and historical reports as explicit UTF-8 bytes. Rebuild the app, select the original TXT folder and press **F5**. Complete stored reports load immediately; truncated rows are repaired from their original TXT, even when its content hash is unchanged. Asset identity, manual assignments and revision counts are preserved. Matching history entries are repaired too. If the original TXT is unavailable, a previously truncated suffix cannot be reconstructed; import the original report or a fresh collector scan. The regression suite covers raw text, unchanged reimport repair, history, assignment preservation and backup with embedded NUL characters.
 
 ## Built-in database
 
@@ -60,8 +80,10 @@ AnyDesk requires a local AnyDesk URI handler. Nmap is optional, runs only when r
 - `src/Cedx.Core`: legacy and extended TXT parsing, import validation, SQLite persistence, revision history and filtering.
 - `src/Cedx.App`: native WPF application, attached collection view replacement, filesystem watcher, assignment editor and export commands.
 - `tests/Cedx.Tests`: parser, query, key masking, encoding, transactional imports, deduplication, older-scan handling, assignment persistence and backup checks.
-- `tests/Cedx.WpfSmoke`: opens the real WPF window, loads every repository example through Refresh, adds a nested report while watching, saves an assignment, imports an update, reopens storage and checks empty/filtered selections. It renders wide and compact layouts using synthetic data only.
+- `tests/Cedx.WpfSmoke`: opens the real WPF window, loads every repository example through Refresh, adds a nested report while watching, saves an assignment, imports an update, reopens storage and checks empty/filtered selections. It also checks NUL-padded reports through the real file watcher, complete selected-asset fields, overview license masking, and compact card height. It renders wide, compact and 125% layouts using synthetic data only.
 
 Run `dotnet run --project tests/Cedx.Tests -c Release` and, on Windows, `dotnet run --project tests/Cedx.WpfSmoke -c Release` from the repository root. GitHub Actions also runs the user's BAT in build-only mode. Rendered screenshots and build logs are retained as workflow artifacts.
 
-The original `cedxadvanced` branch is unchanged. To roll back the application, use that branch in a separate checkout. Keep a database backup before replacing newer builds. Legacy Python/Streamlit sources remain in the repository for reference.
+Latest verified code: [`a68c6f7`](https://github.com/amilapcsgit/cedx/commit/a68c6f7349b4ca1a1a41bd2e8b9372437a19305a). [Windows validation and screenshots](https://github.com/amilapcsgit/cedx/actions/runs/36637198833): 37 Core checks, successful BAT build and all WPF integration/layout checks passed. The five images above come from this run; synthetic cards measure 210 DIP in the Full-HD render.
+
+The `cedxadnacedexe` and `cedxadvanced` branches are unchanged by this UI work. To roll back just the UI, run `cedxadnacedexe` in a separate checkout. Keep a database backup before replacing newer builds. Legacy Python/Streamlit sources remain in the repository for reference.
