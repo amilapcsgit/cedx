@@ -41,6 +41,7 @@ internal static class Program
   vm.SearchText="EXTRA-TEST";Pump();Check(vm.FilteredCount==1&&vm.SelectedAsset?.Hostname=="EXTRA-TEST","Search and selection");
   Check(vm.OsSegments.Sum(s=>s.Count)==1 && Math.Abs(vm.OsSegments.Sum(s=>s.Percent)-100)<0.01,"OS chart tracks filtered inventory");
   var overview=vm.OverviewGroups.SelectMany(g=>g.Fields).ToArray();
+  Console.WriteLine($"Synthetic overview diagnostics: selected={vm.SelectedAsset?.Hostname}; manufacturer={vm.SelectedAsset?.Manufacturer}; disks={vm.SelectedAsset?.LocalDiskSummary}; fields={string.Join("; ",overview.Select(f=>f.Label+"="+f.Value))}");
   Check(overview.Any(f=>f.Label=="Manufacturer"&&f.Value=="Demo manufacturer")&&overview.Any(f=>f.Label=="Disks"&&f.Value.Contains("GB free")),"Overview shows hardware and disks after embedded NUL");
   Check(overview.Any(f=>f.Label=="Gateway"&&f.Value=="192.0.2.254")&&overview.Any(f=>f.Label=="Antivirus"&&f.Value=="Microsoft Defender"),"Overview exposes network and protection without changing tabs");
   Check(!vm.OverviewGroups.Any(g=>g.Title=="Assignment")&&overview.All(f=>!string.IsNullOrWhiteSpace(f.Value)),"Unassigned assets have no empty assignment rows");
