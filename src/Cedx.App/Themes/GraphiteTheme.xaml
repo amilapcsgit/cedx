@@ -137,7 +137,7 @@
               <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.7"/>
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
-              <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.35"/>
+              <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.55"/>
             </Trigger>
             <Trigger Property="IsKeyboardFocused" Value="True">
               <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>

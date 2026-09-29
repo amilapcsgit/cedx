@@ -86,7 +86,7 @@ public sealed partial class MainViewModel
     {
         _revealKeys=false;_detailSearch="";
         OnPropertyChanged(nameof(RevealKeys));OnPropertyChanged(nameof(DetailSearch));OnPropertyChanged(nameof(HasSelection));
-        RefreshInspector();LoadAssignmentDraft();OpenSourceCommand?.RaiseCanExecuteChanged();
+        RefreshInspector();RefreshOverview();LoadAssignmentDraft();OpenSourceCommand?.RaiseCanExecuteChanged();
     }
     private void RefreshInspector()
     {

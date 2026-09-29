@@ -6,6 +6,12 @@ System Manufacturer: Demo manufacturer
 System Model: CAD workstation
 Serial Number: DEMO-0006
 OS Version: Microsoft Windows 11 Pro
+OS Install Date: 2026-01-15 09:00:00
+Last Reboot Time: 2026-09-27 08:30:00
+System Uptime: 2d 4h 18m
+Windows Language: English
+BIOS Version: Demo firmware 1.0
+Monitor Model: Demo 27-inch display
 CPU: Demo processor, 8 cores
 RAM: 64 GB
 GPU: Demo graphics
@@ -20,6 +26,12 @@ Licensed
 
 Antivirus:
 Microsoft Defender
+
+Office Version:
+Microsoft 365 sample
+
+Office Activation:
+Licensed (synthetic sample)
 
 Local User Accounts:
 user6

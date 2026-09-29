@@ -18,5 +18,5 @@ Filter-aware metrics and OS bar chart use actual visible scans. Unknown disk cap
 
 ## Same-report comparison follow-up
 
-4. **Implemented, Windows validation pending:** read raw scans/history as explicit UTF-8 byte sequences from SQLite. Legacy monitor EDID strings contain embedded NUL characters; the previous text read stopped there and hid every subsequent field. Existing TEXT rows and content hashes are preserved. Synthetic regressions cover current scans, unchanged reimport, assignment, history and backup.
-5. **In progress:** compact label/value inspector, omit empty assignment rows, restore manufacturer, monitor, OS activation/dates, network mode/MAC and software summaries, reduce tile/chrome height.
+4. **Complete, Windows validation passed (`e45cc0a`, run `36592611488`):** read raw scans/history as explicit UTF-8 byte sequences from SQLite. Legacy monitor EDID strings contain embedded NUL characters; the previous text read stopped there and hid every subsequent field. Existing TEXT rows and content hashes are preserved. Synthetic regressions cover current scans, unchanged reimport, assignment, history and backup.
+5. **Implemented, Windows validation pending:** compact label/value inspector, omit empty assignment rows, restore manufacturer, monitor, OS activation/dates, network mode/MAC and software summaries, reduce tile/chrome height.

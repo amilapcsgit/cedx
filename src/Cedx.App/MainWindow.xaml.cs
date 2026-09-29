@@ -63,6 +63,19 @@ public partial class MainWindow : Window
         Grid.SetColumn(InspectorPanel,narrow?2:4);
         FleetPanel.Visibility=narrow&&show?Visibility.Collapsed:Visibility.Visible;
     }
+    private void TilesList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource is not DependencyObject origin) return;
+        for (var node = origin; node is not null && node != TilesList; node = VisualTreeHelper.GetParent(node))
+            if (node is Button) return;
+        if (ItemsControl.ContainerFromElement(TilesList, origin) is ListBoxItem { Content: Cedx.Core.Models.AssetRecord asset })
+            _viewModel.OpenAssetCommand.Execute(asset);
+    }
+    private void TilesList_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter && e.OriginalSource is ListBoxItem && _viewModel.SelectedAsset is not null)
+        { _viewModel.OpenAssetCommand.Execute(_viewModel.SelectedAsset); e.Handled = true; }
+    }
     private void InspectorDivider_DragCompleted(object sender,DragCompletedEventArgs e)
     {_viewModel.SavedDetailsWidth=Math.Clamp(InspectorColumn.ActualWidth,390,800);}
     private void FindCommand_Executed(object sender,System.Windows.Input.ExecutedRoutedEventArgs e)

@@ -80,28 +80,30 @@
       </Rectangle>
     </Grid>
     <Border Background="{StaticResource LiquidGlassBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
-      <Grid Margin="12,10,12,8">
+      <Grid Margin="12,6,12,6">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*"/>
           <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
         <StackPanel Orientation="Horizontal">
-          <Border Width="42" Height="42" Background="#173D43" CornerRadius="8" Margin="0,0,12,0">
+          <Border Width="32" Height="32" Background="#173D43" CornerRadius="8" Margin="0,0,12,0">
             <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="22" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </Border>
           <StackPanel>
-            <TextBlock Text="CEDX" FontSize="24" FontWeight="Bold"/>
+            <TextBlock Text="CEDX" FontSize="20" FontWeight="Bold"/>
             <TextBlock Text="ASSET INVENTORY / LOCAL WORKSPACE" Foreground="{StaticResource SubtleTextBrush}" FontSize="11" FontFamily="Consolas"/>
           </StackPanel>
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button Content="Export CSV" Command="{Binding ExportCsvCommand}" Style="{StaticResource Quiet}" Margin="0,0,8,0"/>
+          <Button Content="Export software" Command="{Binding ExportSoftwareCsvCommand}" Style="{StaticResource Quiet}" Margin="0,0,8,0"/>
           <Button Content="Import TXT files" Command="{Binding ImportFilesCommand}" Style="{StaticResource Primary}" Margin="0,0,8,0"/>
           <Button Content="Import folder" Command="{Binding ChooseFolderCommand}" Margin="0,0,8,0"/>
           <Button Content="Refresh / F5" Command="{Binding RefreshCommand}" Style="{StaticResource Quiet}"/>
         </StackPanel>
       </Grid>
     </Border>
-    <Expander Grid.Row="1" Header="Workspace settings and data tools" Margin="12,0,12,10">
+    <Expander Grid.Row="1" Header="Workspace settings and data tools" Margin="12,0,12,4">
       <WrapPanel Margin="0,12">
         <TextBlock Text="Accent" VerticalAlignment="Center" Margin="0,0,10,0"/>
         <ComboBox Width="155" ItemsSource="{Binding AccentOptions}" SelectedItem="{Binding Accent}" Margin="0,0,16,0"/>
@@ -239,15 +241,17 @@
             <ColumnDefinition/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <TextBlock Text="{Binding InventoryScope}" FontSize="26" FontWeight="SemiBold"/>
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="{Binding InventoryScope}" FontSize="22" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <WrapPanel Margin="16,0,0,0" VerticalAlignment="Center">
+              <TextBlock Text="{Binding FilteredCount,StringFormat={}{0} visible}" Foreground="{DynamicResource AccentBrush}" Margin="0,0,12,0"/>
+              <TextBlock Text="{Binding LoadedCount,StringFormat={}{0} stored}" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,12,0"/>
+              <TextBlock Text="{Binding LowStorageCount,StringFormat={}{0} low disk}" Foreground="{StaticResource WarningBrush}"/>
+            </WrapPanel>
+          </StackPanel>
           <Button Grid.Column="1" Content="Asset details" Command="{Binding ToggleInspectorCommand}" Style="{StaticResource Quiet}"/>
         </Grid>
-        <WrapPanel Grid.Row="1" Margin="0,0,0,15">
-          <TextBlock Text="{Binding FilteredCount,StringFormat={}{0} visible}" Foreground="{DynamicResource AccentBrush}" Margin="0,0,12,0"/>
-          <TextBlock Text="{Binding LoadedCount,StringFormat={}{0} stored}" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,12,0"/>
-          <TextBlock Text="{Binding LowStorageCount,StringFormat={}{0} low disk}" Foreground="{StaticResource WarningBrush}"/>
-        </WrapPanel>
-        <Grid Grid.Row="2" Margin="0,0,0,10">
+        <Grid Grid.Row="2" Margin="0,4,0,8">
           <Grid.ColumnDefinitions>
             <ColumnDefinition/>
             <ColumnDefinition Width="Auto"/>
@@ -272,7 +276,7 @@
         <Grid Grid.Row="4">
           <TabControl x:Name="FleetTabs">
             <TabItem Header="CARDS">
-              <ListBox x:Name="TilesList" ItemsSource="{Binding AssetsView}" SelectedItem="{Binding SelectedAsset,Mode=TwoWay}" ItemContainerStyle="{StaticResource Card}" ScrollViewer.VerticalScrollBarVisibility="Auto" IsSynchronizedWithCurrentItem="False">
+              <ListBox x:Name="TilesList" ItemsSource="{Binding AssetsView}" SelectedItem="{Binding SelectedAsset,Mode=TwoWay}" ItemContainerStyle="{StaticResource Card}" ScrollViewer.VerticalScrollBarVisibility="Auto" IsSynchronizedWithCurrentItem="False" MouseDoubleClick="TilesList_MouseDoubleClick" PreviewKeyDown="TilesList_PreviewKeyDown">
                 <ListBox.ItemsPanel>
                   <ItemsPanelTemplate>
                     <WrapPanel/>
@@ -280,7 +284,7 @@
                 </ListBox.ItemsPanel>
                 <ListBox.ItemTemplate>
                   <DataTemplate>
-                    <Grid Margin="16">
+                    <Grid Margin="14,12">
                       <Grid.Width>
                         <MultiBinding Converter="{StaticResource TileWidth}">
                           <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=ListBox}"/>
@@ -295,75 +299,37 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                       </Grid.RowDefinitions>
-                      <Grid>
+                      <TextBlock Text="{Binding Hostname}" FontSize="22" FontWeight="Bold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Hostname}"/>
+                      <Grid Grid.Row="1" Margin="0,5,0,0">
                         <Grid.ColumnDefinitions>
-                          <ColumnDefinition/>
+                          <ColumnDefinition Width="*"/>
                           <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="24" Foreground="{DynamicResource AccentBrush}"/>
-                        <Border Grid.Column="1" Background="#24374C" CornerRadius="3" Padding="7,3">
-                          <TextBlock Text="{Binding ManagementDisplay}" FontFamily="Consolas" FontSize="11" Foreground="#AFC8D7"/>
-                        </Border>
+                        <TextBlock Text="{Binding OwnerDisplay}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding OwnerDisplay}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding ManagementDisplay}" FontSize="10" FontFamily="Consolas" Foreground="{StaticResource SubtleTextBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
                       </Grid>
-                      <StackPanel Grid.Row="1" Margin="0,8,0,0">
-                        <TextBlock Text="{Binding Hostname}" FontSize="22" FontWeight="Bold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Hostname}"/>
-                        <TextBlock Text="{Binding OwnerDisplay}" Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" FontSize="16" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding OrganizationDisplay}" Foreground="{StaticResource SubtleTextBrush}" FontSize="12" TextTrimming="CharacterEllipsis">
-                          <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                              <Style.Triggers>
-                                <Trigger Property="Text" Value="">
-                                  <Setter Property="Visibility" Value="Collapsed"/>
-                                </Trigger>
-                              </Style.Triggers>
-                            </Style>
-                          </TextBlock.Style>
-                        </TextBlock>
-                      </StackPanel>
-                      <Grid Grid.Row="2" Margin="0,10,0,5">
+                      <TextBlock Grid.Row="2" Text="{Binding WindowsAccount}" FontSize="12" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding WindowsAccount}" Margin="0,3,0,6"/>
+                      <Grid Grid.Row="3">
                         <Grid.ColumnDefinitions>
-                          <ColumnDefinition/>
-                          <ColumnDefinition/>
+                          <ColumnDefinition Width="*"/>
+                          <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel>
-                          <TextBlock Text="IP ADDRESS" FontSize="11" Foreground="{StaticResource SubtleTextBrush}"/>
-                          <TextBlock Text="{Binding IpAddress}" FontFamily="Consolas" FontSize="13" Margin="0,3" Foreground="{StaticResource AccentBlueBrush}"/>
-                          <TextBlock Text="{Binding OsShortDisplay}" FontSize="12" Foreground="{StaticResource SubtleTextBrush}"/>
-                          <TextBlock Text="{Binding AnyDeskActionText}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding AnyDeskId}" Margin="0,4,0,0">
-                            <TextBlock.Style>
-                              <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}"/>
-                                <Style.Triggers>
-                                  <DataTrigger Binding="{Binding HasAnyDesk}" Value="True">
-                                    <Setter Property="Foreground" Value="{StaticResource AccentPinkBrush}"/>
-                                  </DataTrigger>
-                                </Style.Triggers>
-                              </Style>
-                            </TextBlock.Style>
-                          </TextBlock>
+                          <TextBlock Text="{Binding OsShortDisplay}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding OsVersion}"/>
+                          <TextBlock Text="{Binding IpAddress}" FontSize="12" Foreground="{StaticResource AccentBlueBrush}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding IpAddress}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1">
-                          <TextBlock Text="{Binding RamDisplay,StringFormat={}RAM  {0}}" FontSize="12"/>
-                          <TextBlock Text="{Binding CDriveTileDisplay,StringFormat={}C: free  {0}}" FontSize="12" Margin="0,3" FontWeight="SemiBold">
+                          <TextBlock Text="{Binding RamDisplay,StringFormat=RAM: {0}}" FontSize="12"/>
+                          <TextBlock Text="{Binding CDriveTileDisplay,StringFormat=C: {0}}" FontSize="12" Margin="0,4,0,0">
                             <TextBlock.Style>
                               <Style TargetType="TextBlock">
                                 <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
                                 <Style.Triggers>
                                   <DataTrigger Binding="{Binding HasLowStorage}" Value="True">
                                     <Setter Property="Foreground" Value="{StaticResource WarningBrush}"/>
-                                  </DataTrigger>
-                                </Style.Triggers>
-                              </Style>
-                            </TextBlock.Style>
-                          </TextBlock>
-                          <TextBlock Text="{Binding StorageHealthDisplay}" FontSize="12">
-                            <TextBlock.Style>
-                              <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}"/>
-                                <Style.Triggers>
-                                  <DataTrigger Binding="{Binding HasLowStorage}" Value="True">
-                                    <Setter Property="Foreground" Value="{StaticResource WarningBrush}"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
                                   </DataTrigger>
                                 </Style.Triggers>
                               </Style>
@@ -371,7 +337,7 @@
                           </TextBlock>
                         </StackPanel>
                       </Grid>
-                      <ProgressBar Grid.Row="3" Value="{Binding Converter={StaticResource DiskMeter},Mode=OneWay}" Visibility="{Binding Converter={StaticResource DiskMeter},ConverterParameter=Visibility}" Maximum="100" Margin="0,3,0,8" ToolTip="C: free space as a percentage of reported capacity">
+                      <ProgressBar Grid.Row="4" Value="{Binding Converter={StaticResource DiskMeter},Mode=OneWay}" Visibility="{Binding Converter={StaticResource DiskMeter},ConverterParameter=Visibility}" Height="3" Maximum="100" Margin="0,7,0,0" ToolTip="C: free space / reported capacity">
                         <ProgressBar.Style>
                           <Style TargetType="ProgressBar" BasedOn="{StaticResource {x:Type ProgressBar}}">
                             <Style.Triggers>
@@ -382,22 +348,22 @@
                           </Style>
                         </ProgressBar.Style>
                       </ProgressBar>
-                      <Grid Grid.Row="4" Margin="0,5,0,0">
-                        <Grid.ColumnDefinitions>
-                          <ColumnDefinition/>
-                          <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Button Content="Open asset" Command="{Binding DataContext.OpenAssetCommand,RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource Primary}" Margin="0,0,8,0"/>
-                        <Button Grid.Column="1" Content="AnyDesk" Command="{Binding DataContext.LaunchAnyDeskCommand,RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding AnyDeskId}"/>
-                      </Grid>
                       <Grid Grid.Row="5" Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="*"/>
+                          <ColumnDefinition Width="68"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Content="{Binding AnyDeskActionText}" Command="{Binding DataContext.LaunchAnyDeskCommand,RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding AnyDeskId}" Style="{StaticResource Primary}" Padding="7,4" MinHeight="32" Margin="0,0,6,0" ToolTip="Launch AnyDesk"/>
+                        <Button Grid.Column="1" Content="Details" Command="{Binding DataContext.OpenAssetCommand,RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Style="{StaticResource Quiet}" Padding="6,4" MinHeight="32" ToolTip="Open asset details. Double-click or press Enter also works."/>
+                      </Grid>
+                      <Grid Grid.Row="6" Margin="0,6,0,0">
                         <Grid.ColumnDefinitions>
                           <ColumnDefinition/>
                           <ColumnDefinition Width="8"/>
                           <ColumnDefinition/>
                         </Grid.ColumnDefinitions>
-                        <Button Content="Copy user" Command="{Binding DataContext.CopyTextCommand,RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding WindowsAccount}" Style="{StaticResource Quiet}" MinHeight="28" Padding="8,3" FontSize="12" ToolTip="{Binding WindowsAccount}"/>
-                        <Button Grid.Column="2" Content="Copy IP" Command="{Binding DataContext.CopyTextCommand,RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding IpAddress}" Style="{StaticResource Quiet}" MinHeight="28" Padding="8,3" FontSize="12" ToolTip="{Binding IpAddress}"/>
+                        <Button Content="Copy user" Command="{Binding DataContext.CopyTextCommand,RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding WindowsAccount}" Style="{StaticResource Quiet}" MinHeight="26" Padding="8,3" FontSize="12" ToolTip="{Binding WindowsAccount}"/>
+                        <Button Grid.Column="2" Content="Copy IP" Command="{Binding DataContext.CopyTextCommand,RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding IpAddress}" Style="{StaticResource Quiet}" MinHeight="26" Padding="8,3" FontSize="12" ToolTip="{Binding IpAddress}"/>
                       </Grid>
                     </Grid>
                   </DataTemplate>
@@ -437,14 +403,14 @@
             </DataGrid.Columns>
           </DataGrid>
         </Expander>
-        <UniformGrid x:Name="FleetMetrics" Grid.Row="3" Columns="4" Margin="0,0,0,12">
+        <UniformGrid x:Name="FleetMetrics" Grid.Row="3" Columns="4" Margin="0,0,0,6">
           <Border Style="{StaticResource MetricPanel}">
             <StackPanel>
               <DockPanel>
                 <Path Width="16" Height="16" Data="M2,2 H18 V13 H2 Z M6,17 H14 M10,13 V17" Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.5" Stretch="Uniform" Margin="0,0,8,0"/>
                 <TextBlock Text="REMOTE ACCESS" FontSize="11" Foreground="{StaticResource MutedTextBrush}"/>
               </DockPanel>
-              <TextBlock Text="{Binding AnyDeskReadyCount,StringFormat={}{0} IDs available}" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,5,0,3"/>
+              <TextBlock Text="{Binding AnyDeskReadyCount,StringFormat={}{0} IDs available}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,5,0,3"/>
               <TextBlock Text="Availability not tested" FontSize="12" Foreground="{StaticResource SubtleTextBrush}"/>
             </StackPanel>
           </Border>
@@ -454,7 +420,7 @@
                 <Path Width="16" Height="16" Data="M10,1 L19,17 H1 Z M10,6 V11 M10,13 V14" Stroke="{StaticResource WarningBrush}" StrokeThickness="1.5" Stretch="Uniform" Margin="0,0,8,0"/>
                 <TextBlock Text="LOW DISK SPACE" FontSize="11" Foreground="{StaticResource MutedTextBrush}"/>
               </DockPanel>
-              <TextBlock Text="{Binding LowStorageCount,StringFormat={}{0} alerts}" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource WarningBrush}" Margin="0,5,0,3"/>
+              <TextBlock Text="{Binding LowStorageCount,StringFormat={}{0} alerts}" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource WarningBrush}" Margin="0,5,0,3"/>
               <TextBlock Text="{Binding VisibleStorageCoverage}" FontSize="12" Foreground="{StaticResource SubtleTextBrush}"/>
             </StackPanel>
           </Border>
@@ -464,14 +430,14 @@
                 <Path Width="16" Height="16" Data="M1,4 H19 V15 H1 Z M4,7 V12 M8,7 V12 M12,7 V12 M16,7 V12 M4,15 V18 M8,15 V18 M12,15 V18 M16,15 V18" Stroke="{StaticResource AccentBlueBrush}" StrokeThickness="1.5" Stretch="Uniform" Margin="0,0,8,0"/>
                 <TextBlock Text="INSTALLED MEMORY" FontSize="11" Foreground="{StaticResource MutedTextBrush}"/>
               </DockPanel>
-              <TextBlock Text="{Binding TotalRamDisplay}" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource AccentBlueBrush}" Margin="0,5,0,3"/>
+              <TextBlock Text="{Binding TotalRamDisplay}" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource AccentBlueBrush}" Margin="0,5,0,3"/>
               <TextBlock Text="{Binding VisibleHardwareCoverage}" FontSize="12" Foreground="{StaticResource SubtleTextBrush}"/>
             </StackPanel>
           </Border>
           <Border Style="{StaticResource MetricPanel}" Margin="0">
             <StackPanel>
               <TextBlock Text="OPERATING SYSTEMS" FontSize="11" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,6"/>
-              <ScrollViewer MaxHeight="65" VerticalScrollBarVisibility="Auto">
+              <ScrollViewer MaxHeight="74" VerticalScrollBarVisibility="Auto">
                 <ItemsControl ItemsSource="{Binding OsSegments}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -521,90 +487,72 @@
           </WrapPanel>
           <TabControl x:Name="InspectorTabs" Grid.Row="2" SelectedIndex="{Binding InspectorTab}">
             <TabItem Header="Overview">
-              <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <ScrollViewer x:Name="OverviewScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
-                  <Grid Margin="0,4,0,10">
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition/>
-                      <ColumnDefinition Width="10"/>
-                      <ColumnDefinition/>
-                    </Grid.ColumnDefinitions>
-                    <Border Background="#1A3040" Padding="12" CornerRadius="5">
-                      <StackPanel>
-                        <TextBlock Text="MEMORY" Foreground="{StaticResource SubtleTextBrush}" FontSize="11"/>
-                        <TextBlock Text="{Binding SelectedAsset.RamDisplay}" FontSize="24" FontWeight="SemiBold" Margin="0,5"/>
-                      </StackPanel>
-                    </Border>
-                    <Border Grid.Column="2" Background="#1D2C41" Padding="12" CornerRadius="5">
-                      <StackPanel>
-                        <TextBlock Text="C: FREE SPACE" Foreground="{StaticResource SubtleTextBrush}" FontSize="11"/>
-                        <TextBlock Text="{Binding SelectedAsset.CDriveTileDisplay}" FontSize="24" FontWeight="SemiBold" Margin="0,5"/>
-                      </StackPanel>
-                    </Border>
-                  </Grid>
-                  <TextBlock Text="Assignment" Style="{StaticResource SectionTitle}"/>
-                  <TextBlock Text="Person" Style="{StaticResource Caption}"/>
-                  <TextBlock Text="{Binding SelectedAsset.OwnerDisplay}" TextWrapping="Wrap"/>
-                  <TextBlock Text="Company / department" Style="{StaticResource Caption}"/>
-                  <TextBlock Text="{Binding SelectedAsset.OrganizationDisplay}" TextWrapping="Wrap"/>
-                  <TextBlock Text="Windows account" Style="{StaticResource Caption}"/>
-                  <TextBlock Text="{Binding SelectedAsset.WindowsAccount}" TextWrapping="Wrap"/>
-                  <TextBlock Text="Asset tag" Style="{StaticResource Caption}"/>
-                  <TextBlock Text="{Binding SelectedAsset.AssetTag}" TextWrapping="Wrap"/>
-                  <TextBlock Text="Location" Style="{StaticResource Caption}"/>
-                  <TextBlock Text="{Binding SelectedAsset.Location}" TextWrapping="Wrap"/>
-                  <TextBlock Text="Hardware and system" Style="{StaticResource SectionTitle}"/>
-                  <TextBlock Text="Manufacturer / model" Style="{StaticResource Caption}"/>
-                  <TextBlock Text="{Binding SelectedAsset.Model}" TextWrapping="Wrap"/>
-                  <TextBlock Text="Serial number" Style="{StaticResource Caption}"/>
-                  <TextBlock Text="{Binding SelectedAsset.SerialNumber}" TextWrapping="Wrap"/>
-                  <TextBlock Text="Operating system" Style="{StaticResource Caption}"/>
-                  <TextBlock Text="{Binding SelectedAsset.OsVersion}" TextWrapping="Wrap"/>
-                  <TextBlock Text="CPU" Style="{StaticResource Caption}"/>
-                  <TextBlock Text="{Binding SelectedAsset.Cpu}" TextWrapping="Wrap"/>
-                  <TextBlock Text="Graphics" Style="{StaticResource Caption}"/>
-                  <TextBlock Text="{Binding SelectedAsset.Gpu}" TextWrapping="Wrap"/>
-                  <TextBlock Text="Antivirus" Style="{StaticResource Caption}"/>
-                  <TextBlock Text="{Binding SelectedAsset.Antivirus}" TextWrapping="Wrap"/>
-                  <TextBlock Text="Network address" Style="{StaticResource Caption}"/>
-                  <TextBlock Text="{Binding SelectedAsset.IpAddress}" TextWrapping="Wrap"/>
-                  <TextBlock Text="Gateway" Style="{StaticResource Caption}"/>
-                  <TextBlock Text="{Binding SelectedAsset.Network.DefaultGateway}" TextWrapping="Wrap"/>
-                  <TextBlock Text="DNS" Style="{StaticResource Caption}"/>
-                  <TextBlock Text="{Binding SelectedAsset.Network.DnsServers}" TextWrapping="Wrap"/>
-                  <TextBlock Text="Storage volumes" Style="{StaticResource SectionTitle}"/>
-                  <ItemsControl ItemsSource="{Binding SelectedAsset.LocalDisks}">
+                  <ItemsControl x:Name="OverviewFields" ItemsSource="{Binding OverviewGroups}">
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
-                        <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,8">
-                          <StackPanel>
-                            <StackPanel Orientation="Horizontal">
-                              <TextBlock Text="{Binding DriveLetter}" FontWeight="Bold" Margin="0,0,12,0"/>
-                              <TextBlock Text="{Binding FreeGb,StringFormat={}{0:0.#} GB free}"/>
-                              <TextBlock Text="{Binding TotalGb,StringFormat={} / {0:0.#} GB}" Foreground="{StaticResource SubtleTextBrush}"/>
-                            </StackPanel>
-                            <ProgressBar Value="{Binding Converter={StaticResource DiskMeter},Mode=OneWay}" Visibility="{Binding Converter={StaticResource DiskMeter},ConverterParameter=Visibility}" Maximum="100" Margin="0,8,0,0" ToolTip="Free space / reported capacity"/>
-                          </StackPanel>
-                        </Border>
+                        <StackPanel Margin="0,0,0,8">
+                          <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,8,0,5"/>
+                          <ItemsControl ItemsSource="{Binding Fields}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate>
+                                <Grid Margin="0,1">
+                                  <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="104"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                  </Grid.ColumnDefinitions>
+                                  <TextBlock Text="{Binding Label}" Foreground="{StaticResource MutedTextBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,3,8,3"/>
+                                  <TextBox Grid.Column="1" Text="{Binding Value,Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="Transparent" Padding="0,3" MinHeight="0" VerticalContentAlignment="Top" FontSize="13" CaretBrush="Transparent">
+                                    <TextBox.Style>
+                                      <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                                        <Style.Triggers>
+                                          <DataTrigger Binding="{Binding Label}" Value="User">
+                                            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                          </DataTrigger>
+                                          <DataTrigger Binding="{Binding Label}" Value="AnyDesk ID">
+                                            <Setter Property="Foreground" Value="{StaticResource AccentPinkBrush}"/>
+                                          </DataTrigger>
+                                          <DataTrigger Binding="{Binding Label}" Value="IP address">
+                                            <Setter Property="Foreground" Value="{StaticResource AccentBlueBrush}"/>
+                                          </DataTrigger>
+                                        </Style.Triggers>
+                                      </Style>
+                                    </TextBox.Style>
+                                  </TextBox>
+                                  <Button Grid.Column="2" Command="{Binding DataContext.CopyTextCommand,RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding Value}" Visibility="{Binding CanCopy,Converter={StaticResource BoolVisibility}}" Style="{StaticResource Quiet}" MinHeight="24" Width="26" Padding="5" Margin="6,1,0,1" VerticalAlignment="Top" ToolTip="{Binding Label,StringFormat=Copy {0}}" AutomationProperties.Name="{Binding Label,StringFormat=Copy {0}}">
+                                    <Path Data="M6,2 H16 V15 H6 Z M3,6 H1 V19 H12 V17" Width="12" Height="14" Stretch="Uniform" Stroke="{StaticResource MutedTextBrush}" StrokeThickness="1.3"/>
+                                  </Button>
+                                </Grid>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
-                  <TextBlock Text="Collection notes" Style="{StaticResource SectionTitle}"/>
-                  <TextBlock Text="{Binding DetailSummary}" Foreground="{StaticResource SubtleTextBrush}" TextWrapping="Wrap"/>
-                  <ItemsControl ItemsSource="{Binding SelectedAsset.ParseWarnings}">
-                    <ItemsControl.ItemTemplate>
-                      <DataTemplate>
-                        <TextBlock Text="{Binding}" Foreground="{StaticResource WarningBrush}" TextWrapping="Wrap" Margin="0,5"/>
-                      </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                  </ItemsControl>
-                  <Expander Header="Remote diagnostics" Margin="0,18">
+                  <Expander Header="Remote diagnostics" Margin="0,6">
                     <StackPanel>
                       <Button Content="Copy WinRM command" Command="{Binding CopyTextCommand}" CommandParameter="{Binding SelectedAsset.WinRmCommand}"/>
                       <TextBlock Text="Nmap executable" Style="{StaticResource Caption}"/>
                       <TextBox Text="{Binding NmapPath}"/>
                       <ComboBox ItemsSource="{Binding ScanTypeOptions}" SelectedItem="{Binding SelectedNmapScanType}" Margin="0,8"/>
                       <Button Content="Scan filtered assets" Command="{Binding ScanNetworkCommand}"/>
+                    </StackPanel>
+                  </Expander>
+                  <Expander Header="Collection notes" Margin="0,6">
+                    <StackPanel>
+                      <TextBlock Text="{Binding DetailSummary}" Foreground="{StaticResource SubtleTextBrush}" TextWrapping="Wrap"/>
+                      <TextBlock Text="{Binding SelectedAsset.SourceFileName}" Foreground="{StaticResource SubtleTextBrush}" TextWrapping="Wrap" FontSize="12" Margin="0,8"/>
+                      <ItemsControl ItemsSource="{Binding SelectedAsset.ParseWarnings}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <TextBlock Text="{Binding}" Foreground="{StaticResource WarningBrush}" TextWrapping="Wrap" Margin="0,4"/>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
                     </StackPanel>
                   </Expander>
                 </StackPanel>
