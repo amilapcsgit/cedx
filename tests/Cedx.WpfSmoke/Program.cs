@@ -41,7 +41,16 @@ internal static class Program
   vm.SearchText="EXTRA-TEST";Pump();Check(vm.FilteredCount==1&&vm.SelectedAsset?.Hostname=="EXTRA-TEST","Search and selection");
   Check(vm.OsSegments.Sum(s=>s.Count)==1 && Math.Abs(vm.OsSegments.Sum(s=>s.Percent)-100)<0.01,"OS chart tracks filtered inventory");
   var overview=vm.OverviewGroups.SelectMany(g=>g.Fields).ToArray();
-  Console.WriteLine($"Synthetic overview diagnostics: selected={vm.SelectedAsset?.Hostname}; manufacturer={vm.SelectedAsset?.Manufacturer}; disks={vm.SelectedAsset?.LocalDiskSummary}; fields={string.Join("; ",overview.Select(f=>f.Label+"="+f.Value))}");
+  var sourceText=File.ReadAllText(Path.Combine(nested,"extra.TXT"));
+  var direct=new Cedx.Core.Parsing.AssetTextParser().Parse(sourceText,"extra.TXT",DateTimeOffset.Now);
+  var reloaded=db.Load().Single(a=>a.Hostname=="EXTRA-TEST");
+  using(var connection=new Microsoft.Data.Sqlite.SqliteConnection("Data Source="+db.Path)){
+   connection.Open();using var command=connection.CreateCommand();command.CommandText="SELECT CAST(raw AS BLOB) FROM assets WHERE id=$id";command.Parameters.AddWithValue("$id",reloaded.AssetId);
+   var stored=System.Text.Encoding.UTF8.GetString((byte[])command.ExecuteScalar()!);
+   Console.WriteLine($"Synthetic NUL diagnostics: source={sourceText.Length}, direct={direct.RawContent.Length}/{direct.Manufacturer}, stored={stored.Length}, reloaded={reloaded.RawContent.Length}/{reloaded.Manufacturer}, selected={vm.SelectedAsset!.RawContent.Length}/{vm.SelectedAsset.Manufacturer}, core={typeof(InventoryDatabase).Assembly.Location}");
+   Check(stored==sourceText,"Complete synthetic report stored");
+  }
+  Check(reloaded.RawContent==sourceText&&vm.SelectedAsset!.RawContent==sourceText,"Complete synthetic report reaches selection");
   Check(overview.Any(f=>f.Label=="Manufacturer"&&f.Value=="Demo manufacturer")&&overview.Any(f=>f.Label=="Disks"&&f.Value.Contains("GB free")),"Overview shows hardware and disks after embedded NUL");
   Check(overview.Any(f=>f.Label=="Gateway"&&f.Value=="192.0.2.254")&&overview.Any(f=>f.Label=="Antivirus"&&f.Value=="Microsoft Defender"),"Overview exposes network and protection without changing tabs");
   Check(!vm.OverviewGroups.Any(g=>g.Title=="Assignment")&&overview.All(f=>!string.IsNullOrWhiteSpace(f.Value)),"Unassigned assets have no empty assignment rows");
