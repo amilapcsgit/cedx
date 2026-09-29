@@ -7,7 +7,11 @@ The approved reference is the older CEDX screenshot: midnight blue surfaces, blu
 ## Targets
 
 1. **Complete, Windows validation passed (`cbeb1e3`, run `36573115411`):** remove unused white client border. Apply the Window style explicitly and remove the 20-DIP root margin. Screenshots must no longer override production margins. Test the shown maximized window and render at 1920 x 1080.
-2. **Implemented, Windows validation pending:** restore the reference palette through reusable resources, readable text sizes, visible keyboard focus and consistent dark controls.
-3. **Pending:** compact useful tiles, recognizable icons, real filtered inventory indicators, wide and compact layout checks, refreshed screenshots and README.
+2. **Complete, Windows validation passed (`7c484d1`, run `36573607274`):** restore the reference palette through reusable resources, readable text sizes, visible keyboard focus and consistent dark controls.
+3. **Implemented, Windows validation pending:** compact useful tiles, recognizable icons, real filtered inventory indicators, wide and compact layout checks, refreshed screenshots and README.
 
 Each target is a separate commit on this branch. Database, import and assignment behavior remain covered by the existing regression suite. No uploaded screenshots or real inventory details are committed.
+
+## Target 3 details
+
+Filter-aware metrics and OS bar chart use actual visible scans. Unknown disk capacity hides the free-space meter; a missing AnyDesk ID never means offline. Disk warnings use the configured threshold. Tiles restore copy-user/copy-IP actions and magenta remote IDs. Navigation highlights the current scope. Full-HD and 125% logical sizing are captured without changing production margins.

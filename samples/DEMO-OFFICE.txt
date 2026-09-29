@@ -5,7 +5,7 @@ IP Address: 192.0.2.2
 System Manufacturer: Demo manufacturer
 System Model: OFFICE workstation
 Serial Number: DEMO-0002
-OS Version: Microsoft Windows 11 Pro
+OS Version: Microsoft Windows 10 Pro
 CPU: Demo processor, 8 cores
 RAM: 16 GB
 GPU: Demo graphics

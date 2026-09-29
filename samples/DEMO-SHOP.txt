@@ -5,7 +5,7 @@ IP Address: 192.0.2.5
 System Manufacturer: Demo manufacturer
 System Model: SHOP workstation
 Serial Number: DEMO-0005
-OS Version: Microsoft Windows 11 Pro
+OS Version: Microsoft Windows 10 Pro
 CPU: Demo processor, 8 cores
 RAM: 8 GB
 GPU: Demo graphics

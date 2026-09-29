@@ -7,6 +7,9 @@ using System.Windows.Threading;
 using Cedx.App.ViewModels;
 using Cedx.Core.Storage;
 using System.Diagnostics;
+using System.Globalization;
+using Cedx.Core.Models;
+using Cedx.App.Common;
 
 internal static class Program
 {
@@ -36,6 +39,7 @@ internal static class Program
   WaitUntil(()=>vm.LoadedCount==originals.Length+1,TimeSpan.FromSeconds(15));
   Check(vm.FilteredCount==originals.Length+1,"Watcher imports nested additions including larger RAM");
   vm.SearchText="EXTRA-TEST";Pump();Check(vm.FilteredCount==1&&vm.SelectedAsset?.Hostname=="EXTRA-TEST","Search and selection");
+  Check(vm.OsSegments.Sum(s=>s.Count)==1 && Math.Abs(vm.OsSegments.Sum(s=>s.Percent)-100)<0.01,"OS chart tracks filtered inventory");
   vm.EditCompany="Synthetic company";vm.EditPerson="Sample operator";vm.EditDepartment="Engineering";vm.EditLocation="Room 2";vm.EditTag="LAB-001";vm.SaveSelectedAsset();
   Check(vm.SelectedAsset?.IsManaged==true&&vm.SelectedAsset.Company=="Synthetic company","Promote scan to managed asset");
   Check(vm.CreateInventoryCsv().Contains("Synthetic company,Sample operator,Engineering,Room 2,LAB-001"),"Filtered CSV includes saved assignment");
@@ -56,6 +60,14 @@ internal static class Program
   Directory.CreateDirectory("artifacts/ui-smoke");
   Layout(root,1920,1080);p.ShowInspector=true;Layout(root,1920,1080);
   Check(p.FilteredCount==6,"Six sample cards");
+  Check(p.OsSegments.Count==3 && p.OsSegments.Sum(s=>s.Count)==6,"OS distribution covers every sample");
+  Check(((System.Windows.Controls.Primitives.UniformGrid)preview.FindName("FleetMetrics")).Columns==4,"Full HD metric panels use four columns");
+  var meter=new DiskMeterConverter();
+  Check((double)meter.Convert(new StorageDevice{TotalGb=100,FreeGb=25},typeof(double),"",CultureInfo.InvariantCulture)==25,"Disk meter uses actual free and total capacity");
+  Check((Visibility)meter.Convert(new StorageDevice{TotalGb=0,FreeGb=25},typeof(Visibility),"Visibility",CultureInfo.InvariantCulture)==Visibility.Collapsed,"Unknown capacity does not produce a chart");
+  p.SearchText="DEMO-SHOP";Layout(root,1920,1080);
+  Check(p.LowStorageCount==1 && p.OsSegments.Single().Label=="Windows 10","Metrics follow search and real low disk data");
+  p.ResetFiltersCommand.Execute(null);Layout(root,1920,1080);
   Check(Grid.GetColumn((Border)preview.FindName("InspectorPanel"))==4,"Wide inspector docking");
   Capture(root,"01-inventory");
   p.ManageAssetCommand.Execute(null);Layout(root,1920,1080);Capture(root,"02-manage-asset");
@@ -64,11 +76,14 @@ internal static class Program
   Layout(root,1040,800);Check(((Grid)preview.FindName("FleetPanel")).Visibility==Visibility.Visible,"Compact cards remain visible");
   p.OpenAssetCommand.Execute(p.SelectedAsset);Layout(root,1040,800);Check(((Border)preview.FindName("InspectorPanel")).ActualWidth>500,"Compact inspector has usable width");Capture(root,"04-compact");
   p.Accent="Violet";p.TileMinimumWidth=320;p.ShowInspector=false;Layout(root,1920,1080);
+  p.Accent="Ion cyan";p.TileMinimumWidth=280;Layout(root,1536,864);p.ShowInspector=true;Layout(root,1536,864);
+  Check(((Grid)preview.FindName("FleetPanel")).ActualWidth>700,"Full HD at 125 percent retains usable cards");
+  Capture(root,"05-scale-125",120);
   Console.WriteLine("PASS: bound refresh, all example TXT files, watched folder additions, large RAM, managed assignment, persistence, empty selection and responsive WPF screens");
   p.DisposeWorkspace();Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();Directory.Delete(temp,true);return 0;
  }
  static void Layout(FrameworkElement root,double w,double h){root.Width=w;root.Height=h;root.Measure(new Size(w,h));root.Arrange(new Rect(0,0,w,h));root.UpdateLayout();Pump();root.Measure(new Size(w,h));root.Arrange(new Rect(0,0,w,h));root.UpdateLayout();}
- static void Capture(FrameworkElement root,string name){var bitmap=new RenderTargetBitmap((int)root.ActualWidth,(int)root.ActualHeight,96,96,PixelFormats.Pbgra32);bitmap.Render(root);var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var file=File.Create($"artifacts/ui-smoke/{name}.png");encoder.Save(file);}
+ static void Capture(FrameworkElement root,string name,double dpi=96){var bitmap=new RenderTargetBitmap((int)Math.Round(root.ActualWidth*dpi/96),(int)Math.Round(root.ActualHeight*dpi/96),dpi,dpi,PixelFormats.Pbgra32);bitmap.Render(root);var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var file=File.Create($"artifacts/ui-smoke/{name}.png");encoder.Save(file);}
  static void Pump(){Dispatcher.CurrentDispatcher.Invoke(()=>{},DispatcherPriority.ApplicationIdle);}
  static void Wait(Task task){WaitUntil(()=>task.IsCompleted,TimeSpan.FromSeconds(30));task.GetAwaiter().GetResult();}
  static void WaitUntil(Func<bool> done,TimeSpan timeout){var watch=Stopwatch.StartNew();while(!done()){if(watch.Elapsed>timeout)throw new TimeoutException("UI operation timed out");Pump();Thread.Sleep(10);}Pump();}

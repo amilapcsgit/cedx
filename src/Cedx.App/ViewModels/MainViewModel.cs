@@ -724,6 +724,7 @@ public sealed partial class MainViewModel : ObservableObject
         ManufacturerDistributionText = "Makers: " + FormatDistribution(visibleAssets.Select(asset => asset.Manufacturer).Where(value => value.Length > 0));
         StatusDistributionText = $"Status: {OnlineCount} online / {OfflineCount} offline / {UnknownCount} unknown";
         StorageHealthText = LowStorageCount == 0 ? "Storage: no low C: alerts" : $"Storage: {LowStorageCount} below {LowStorageThresholdGb:0.#} GB";
+        UpdateVisualSummary(visibleAssets);
     }
 
     private void RebuildFilterOptions()

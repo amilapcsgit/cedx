@@ -25,6 +25,7 @@ public partial class MainWindow : Window
         Width = Math.Max(MinWidth, Math.Min(_viewModel.SavedWindowWidth, SystemParameters.WorkArea.Width));
         Height = Math.Max(MinHeight, Math.Min(_viewModel.SavedWindowHeight, SystemParameters.WorkArea.Height));
         Workspace.SizeChanged += (_, _) => ArrangeWorkspace();
+        FleetPanel.SizeChanged += (_, _) => FleetMetrics.Columns = FleetPanel.ActualWidth < 980 ? 2 : 4;
         _viewModel.PropertyChanged += (_, e) => {
             if (e.PropertyName is nameof(MainViewModel.ShowInspector) or nameof(MainViewModel.SavedDetailsWidth)) ArrangeWorkspace(true);
             if (e.PropertyName == nameof(MainViewModel.Accent)) ApplyAccent();
@@ -43,6 +44,9 @@ public partial class MainWindow : Window
     {
         var hex=_viewModel.Accent switch{"Phosphor green"=>"#86E897","Violet"=>"#B69CFA",_=>"#4DFFD2"};
         Application.Current.Resources["AccentBrush"]=new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
+        var start = _viewModel.Accent switch { "Phosphor green" => "#86E897", "Violet" => "#B69CFA", _ => "#00DDA8" };
+        Application.Current.Resources["PrimaryButtonBrush"] = new LinearGradientBrush(
+            (Color)ColorConverter.ConvertFromString(start), (Color)ColorConverter.ConvertFromString("#28A8FF"), new Point(0,0), new Point(1,1));
     }
     private void ArrangeWorkspace(bool force=false)
     {
