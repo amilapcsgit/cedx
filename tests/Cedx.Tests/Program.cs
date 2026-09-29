@@ -76,6 +76,16 @@ try{
  nulStore.SaveAssignment(nulAsset.AssetId,assignment);
  Check(nulStore.Import([nulFile]).Unchanged==1&&nulStore.Load().Single().Assignment==assignment,"Existing unchanged scans restore all fields and retain assignment");
  Check(nulStore.History(nulAsset.AssetId).Single().RawText==nulText,"History preserves complete NUL report");
+ // Simulate the old desktop writer: stored prefix, full-report hash and saved assignment.
+ using(var legacy=new Microsoft.Data.Sqlite.SqliteConnection("Data Source="+nulStore.Path)){
+  legacy.Open();using var damage=legacy.CreateCommand();
+  damage.CommandText="UPDATE assets SET raw=$prefix; UPDATE revisions SET raw=$prefix;";
+  damage.Parameters.AddWithValue("$prefix",nulText[..nulText.IndexOf('\0')]);damage.ExecuteNonQuery();
+ }
+ Check(nulStore.Import([nulFile]).Updated==1,"Unchanged source repairs legacy truncated storage");
+ var repaired=nulStore.Load().Single();
+ Check(repaired.RawContent==nulText&&repaired.AssetId==nulAsset.AssetId&&repaired.Assignment==assignment&&repaired.RevisionCount==1,"Repair preserves asset identity, assignment and revision count");
+ Check(nulStore.History(nulAsset.AssetId).Single().RawText==nulText,"Repair restores matching historical report");
  var nulBackup=Path.Combine(temp,"nul-backup.db");nulStore.Backup(nulBackup);
  Check(new Cedx.Core.Storage.InventoryDatabase(nulBackup).Load().Single().RawContent==nulText,"Backup preserves complete NUL report");
  var utf16=Path.Combine(temp,"unicode.txt");File.WriteAllText(utf16,report.Replace("LAB-01","LAB-UTF16"),System.Text.Encoding.Unicode);

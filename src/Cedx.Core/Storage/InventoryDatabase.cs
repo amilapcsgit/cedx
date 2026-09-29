@@ -73,26 +73,29 @@ public sealed class InventoryDatabase
     public string Upsert(AssetRecord record, bool sample = false)
     {
         var identity = Identity(record, sample);
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(record.RawContent)));
+        var rawBytes = Encoding.UTF8.GetBytes(record.RawContent);
+        var hash = Convert.ToHexString(SHA256.HashData(rawBytes));
         using var db = Open(); using var tx = db.BeginTransaction();
         using var find = db.CreateCommand(); find.Transaction = tx;
-        find.CommandText = "SELECT id,hash,scanned FROM assets WHERE identity=$identity"; find.Parameters.AddWithValue("$identity", identity);
-        string? id = null, existingHash = null, scanned = null;
-        using (var r = find.ExecuteReader()) if (r.Read()) { id = r.GetString(0); existingHash = r.GetString(1); scanned = r.GetString(2); }
-        if (existingHash == hash) { tx.Commit(); return "Unchanged"; }
+        find.CommandText = "SELECT id,hash,scanned,CAST(raw AS BLOB) FROM assets WHERE identity=$identity"; find.Parameters.AddWithValue("$identity", identity);
+        string? id = null, existingHash = null, scanned = null; byte[]? existingRaw = null;
+        using (var r = find.ExecuteReader()) if (r.Read()) { id = r.GetString(0); existingHash = r.GetString(1); scanned = r.GetString(2); existingRaw = r.GetFieldValue<byte[]>(3); }
+        // Older builds could persist only the prefix before a NUL while hashing the full report.
+        // Compare the bytes too, so an unchanged source repairs that row without changing identity.
+        if (existingHash == hash && existingRaw!.AsSpan().SequenceEqual(rawBytes)) { tx.Commit(); return "Unchanged"; }
         var isNew = id is null; id ??= Guid.NewGuid().ToString("N");
-        var newer = isNew || record.LastModified >= DateTimeOffset.Parse(scanned!, CultureInfo.InvariantCulture);
+        var newer = isNew || existingHash == hash || record.LastModified >= DateTimeOffset.Parse(scanned!, CultureInfo.InvariantCulture);
         using var c = db.CreateCommand(); c.Transaction = tx;
         c.CommandText = isNew
             ? "INSERT INTO assets(id,identity,raw,source,scanned,hash,sample) VALUES($id,$identity,$raw,$source,$scanned,$hash,$sample)"
             : newer ? "UPDATE assets SET raw=$raw,source=$source,scanned=$scanned,hash=$hash WHERE id=$id" : "SELECT 1";
-        c.Parameters.AddWithValue("$id", id); c.Parameters.AddWithValue("$identity", identity); c.Parameters.AddWithValue("$raw", record.RawContent);
+        c.Parameters.AddWithValue("$id", id); c.Parameters.AddWithValue("$identity", identity); c.Parameters.Add("$raw", SqliteType.Blob).Value = rawBytes;
         c.Parameters.AddWithValue("$source", record.SourceFilePath); c.Parameters.AddWithValue("$scanned", record.LastModified.ToString("O"));
         c.Parameters.AddWithValue("$hash", hash); c.Parameters.AddWithValue("$sample", sample ? 1 : 0); c.ExecuteNonQuery();
         using var history = db.CreateCommand(); history.Transaction = tx;
-        history.CommandText = "INSERT OR IGNORE INTO revisions(asset_id,hash,scanned,source,raw) VALUES($id,$hash,$scanned,$source,$raw)";
+        history.CommandText = "INSERT INTO revisions(asset_id,hash,scanned,source,raw) VALUES($id,$hash,$scanned,$source,$raw) ON CONFLICT(asset_id,hash) DO UPDATE SET raw=excluded.raw";
         history.Parameters.AddWithValue("$id", id); history.Parameters.AddWithValue("$hash", hash); history.Parameters.AddWithValue("$scanned", record.LastModified.ToString("O"));
-        history.Parameters.AddWithValue("$source", record.SourceFilePath); history.Parameters.AddWithValue("$raw", record.RawContent); history.ExecuteNonQuery();
+        history.Parameters.AddWithValue("$source", record.SourceFilePath); history.Parameters.Add("$raw", SqliteType.Blob).Value = rawBytes; history.ExecuteNonQuery();
         tx.Commit(); return isNew ? "Added" : newer ? "Updated" : "History only";
     }
     private static string Identity(AssetRecord a, bool sample)
@@ -118,8 +121,8 @@ public sealed class InventoryDatabase
         return rows;
     }
     // The collector can include U+0000 in EDID monitor names. GetString uses a
-    // NUL-terminated native text path; reading explicit UTF-8 bytes preserves the
-    // complete report, including existing TEXT rows, without changing its hash.
+    // NUL-terminated native text path in some runtime paths. Explicit UTF-8 byte
+    // storage and reads preserve new BLOB rows and complete legacy TEXT rows.
     private static string ReadRaw(SqliteDataReader reader, int ordinal) =>
         Encoding.UTF8.GetString(reader.GetFieldValue<byte[]>(ordinal));
 
