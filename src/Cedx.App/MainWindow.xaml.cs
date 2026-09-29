@@ -41,7 +41,7 @@ public partial class MainWindow : Window
     }
     private void ApplyAccent()
     {
-        var hex=_viewModel.Accent switch{"Phosphor green"=>"#86E897","Violet"=>"#B69CFA",_=>"#4DE2C2"};
+        var hex=_viewModel.Accent switch{"Phosphor green"=>"#86E897","Violet"=>"#B69CFA",_=>"#4DFFD2"};
         Application.Current.Resources["AccentBrush"]=new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
     }
     private void ArrangeWorkspace(bool force=false)
