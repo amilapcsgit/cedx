@@ -25,7 +25,7 @@ public partial class MainWindow : Window
         Width = Math.Max(MinWidth, Math.Min(_viewModel.SavedWindowWidth, SystemParameters.WorkArea.Width));
         Height = Math.Max(MinHeight, Math.Min(_viewModel.SavedWindowHeight, SystemParameters.WorkArea.Height));
         Workspace.SizeChanged += (_, _) => ArrangeWorkspace();
-        FleetPanel.SizeChanged += (_, _) => FleetMetrics.Columns = FleetPanel.ActualWidth < 980 ? 2 : 4;
+        FleetPanel.SizeChanged += (_, _) => FleetMetrics.Columns = FleetPanel.ActualWidth < 760 ? 2 : 4;
         _viewModel.PropertyChanged += (_, e) => {
             if (e.PropertyName is nameof(MainViewModel.ShowInspector) or nameof(MainViewModel.SavedDetailsWidth)) ArrangeWorkspace(true);
             if (e.PropertyName == nameof(MainViewModel.Accent)) ApplyAccent();

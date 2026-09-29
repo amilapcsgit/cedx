@@ -15,7 +15,8 @@ public sealed partial class MainViewModel
         var groups = new List<OverviewGroup>();
         void Add(string title, params OverviewField[] fields)
         {
-            var rows = fields.Where(f => !string.IsNullOrWhiteSpace(f.Value)).ToArray();
+            var rows = fields.Where(f => !string.IsNullOrWhiteSpace(f.Value))
+                .Select(f => f with { Value = Display(f.Value) }).ToArray();
             if (rows.Length > 0) groups.Add(new(title, rows));
         }
         Add("Identity", new OverviewField("Hostname", a.Hostname, true), new OverviewField("User", a.WindowsUserDisplay),

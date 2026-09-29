@@ -308,7 +308,7 @@
                           <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="{Binding OwnerDisplay}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding OwnerDisplay}"/>
-                        <TextBlock Grid.Column="1" Text="{Binding ManagementDisplay}" FontSize="10" FontFamily="Consolas" Foreground="{StaticResource SubtleTextBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <TextBlock Grid.Column="1" Text="{Binding ManagementDisplay}" FontSize="11" FontFamily="Consolas" Foreground="{StaticResource SubtleTextBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
                       </Grid>
                       <TextBlock Grid.Row="2" Text="{Binding WindowsAccount}" FontSize="12" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding WindowsAccount}" Margin="0,2,0,4"/>
                       <Grid Grid.Row="3">
@@ -322,7 +322,7 @@
                         </StackPanel>
                         <StackPanel Grid.Column="1">
                           <TextBlock Text="{Binding RamDisplay,StringFormat=RAM: {0}}" FontSize="12"/>
-                          <TextBlock Text="{Binding CDriveTileDisplay,StringFormat=C: {0}}" FontSize="12" Margin="0,4,0,0">
+                          <TextBlock Text="{Binding CDriveTileDisplay,StringFormat=C: free {0}}" FontSize="12" Margin="0,4,0,0">
                             <TextBlock.Style>
                               <Style TargetType="TextBlock">
                                 <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
@@ -441,14 +441,14 @@
                 <ItemsControl ItemsSource="{Binding OsSegments}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                      <Grid Margin="0,2">
+                      <Grid Margin="0,1">
                         <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="*"/>
                           <ColumnDefinition Width="26"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                           <TextBlock Text="{Binding Label}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding Label}"/>
-                          <ProgressBar Value="{Binding Percent,Mode=OneWay}" Maximum="100" Foreground="{StaticResource AccentBlueBrush}" Height="3" Margin="0,3,0,2" ToolTip="{Binding Percent,StringFormat={}{0:0.#}% of visible assets}"/>
+                          <ProgressBar Value="{Binding Percent,Mode=OneWay}" Maximum="100" Foreground="{StaticResource AccentBlueBrush}" Height="2" Margin="0,1,0,1" ToolTip="{Binding Percent,StringFormat={}{0:0.#}% of visible assets}"/>
                         </StackPanel>
                         <TextBlock Grid.Column="1" Text="{Binding Count}" HorizontalAlignment="Right" FontSize="12"/>
                       </Grid>

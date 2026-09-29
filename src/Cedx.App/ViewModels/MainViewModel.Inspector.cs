@@ -42,7 +42,7 @@ public sealed partial class MainViewModel
     public string DetailCategory {get=>_detailCategory;set{if(SetProperty(ref _detailCategory,value))RefreshInspector();}}
     public string DetailSearch {get=>_detailSearch;set{if(SetProperty(ref _detailSearch,value))RefreshDetailRows();}}
     public AssetDetailSection? SelectedDetailSection {get=>_selectedDetailSection;set{if(SetProperty(ref _selectedDetailSection,value))RefreshDetailRows();}}
-    public bool RevealKeys {get=>_revealKeys;set{if(SetProperty(ref _revealKeys,value))RefreshDetailRows();}}
+    public bool RevealKeys {get=>_revealKeys;set{if(SetProperty(ref _revealKeys,value)){RefreshDetailRows();RefreshOverview();}}}
     public bool ShowFilters {get=>_showFilters;set=>SetProperty(ref _showFilters,value);}
     public double TileMinimumWidth {get=>_tileMinimumWidth;set=>SetProperty(ref _tileMinimumWidth,Math.Clamp(value,220,440));}
     public string Accent {get=>_accent;set=>SetProperty(ref _accent,value);}

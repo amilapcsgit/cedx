@@ -34,6 +34,7 @@ internal static class Program
   Check(vm.LoadedCount==originals.Length&&vm.FilteredCount==originals.Length,"Every repository example loads through bound UI");
   Check(!vm.StatusMessage.StartsWith("Load failed"),"No deferred refresh exception");
   var template=File.ReadAllText("samples/DEMO-SERVER.txt").Replace("System Manufacturer:","Monitor Model: Sample display\0\0\0\0\nSystem Manufacturer:");
+  template += "\nOffice Activation:\nSynthetic key AAAAA-BBBBB-CCCCC-DDDDD-EEEEE\n\n";
   var nested=Path.Combine(source,"nested");Directory.CreateDirectory(nested);
   File.WriteAllText(Path.Combine(nested,"extra.TXT"),template.Replace("DEMO-SERVER","EXTRA-TEST").Replace("128 GB","1024 GB"));
   WaitUntil(()=>vm.LoadedCount==originals.Length+1,TimeSpan.FromSeconds(15));
@@ -42,18 +43,13 @@ internal static class Program
   Check(vm.OsSegments.Sum(s=>s.Count)==1 && Math.Abs(vm.OsSegments.Sum(s=>s.Percent)-100)<0.01,"OS chart tracks filtered inventory");
   var overview=vm.OverviewGroups.SelectMany(g=>g.Fields).ToArray();
   var sourceText=File.ReadAllText(Path.Combine(nested,"extra.TXT"));
-  var direct=new Cedx.Core.Parsing.AssetTextParser().Parse(sourceText,"extra.TXT",DateTimeOffset.Now);
   var reloaded=db.Load().Single(a=>a.Hostname=="EXTRA-TEST");
-  using(var connection=new Microsoft.Data.Sqlite.SqliteConnection("Data Source="+db.Path)){
-   connection.Open();using var command=connection.CreateCommand();command.CommandText="SELECT CAST(raw AS BLOB) FROM assets WHERE id=$id";command.Parameters.AddWithValue("$id",reloaded.AssetId);
-   var stored=System.Text.Encoding.UTF8.GetString((byte[])command.ExecuteScalar()!);
-   Console.WriteLine($"Synthetic NUL diagnostics: source={sourceText.Length}, direct={direct.RawContent.Length}/{direct.Manufacturer}, stored={stored.Length}, reloaded={reloaded.RawContent.Length}/{reloaded.Manufacturer}, selected={vm.SelectedAsset!.RawContent.Length}/{vm.SelectedAsset.Manufacturer}, core={typeof(InventoryDatabase).Assembly.Location}");
-   Check(stored==sourceText,"Complete synthetic report stored");
-  }
   Check(reloaded.RawContent==sourceText&&vm.SelectedAsset!.RawContent==sourceText,"Complete synthetic report reaches selection");
   Check(overview.Any(f=>f.Label=="Manufacturer"&&f.Value=="Demo manufacturer")&&overview.Any(f=>f.Label=="Disks"&&f.Value.Contains("GB free")),"Overview shows hardware and disks after embedded NUL");
   Check(overview.Any(f=>f.Label=="Gateway"&&f.Value=="192.0.2.254")&&overview.Any(f=>f.Label=="Antivirus"&&f.Value=="Microsoft Defender"),"Overview exposes network and protection without changing tabs");
   Check(!vm.OverviewGroups.Any(g=>g.Title=="Assignment")&&overview.All(f=>!string.IsNullOrWhiteSpace(f.Value)),"Unassigned assets have no empty assignment rows");
+  Check(overview.Any(f=>f.Label=="Office status"&&f.Value.Contains("[key hidden]")),"Overview masks embedded license keys");
+  vm.RevealKeys=true;Check(vm.OverviewGroups.SelectMany(g=>g.Fields).Any(f=>f.Value.Contains("AAAAA-BBBBB")),"Explicit reveal updates overview");vm.RevealKeys=false;
   vm.EditCompany="Synthetic company";vm.EditPerson="Sample operator";vm.EditDepartment="Engineering";vm.EditLocation="Room 2";vm.EditTag="LAB-001";vm.SaveSelectedAsset();
   Check(vm.SelectedAsset?.IsManaged==true&&vm.SelectedAsset.Company=="Synthetic company","Promote scan to managed asset");
   Check(vm.OverviewGroups.Single(g=>g.Title=="Assignment").Fields.Any(f=>f.Value=="Synthetic company"),"Saved assignment appears in compact overview");
@@ -87,6 +83,7 @@ internal static class Program
   var card=((ListBox)preview.FindName("TilesList")).ItemContainerGenerator.ContainerFromIndex(0) as ListBoxItem;
   Check(card is not null&&card.ActualHeight<285,"Compact tile retains useful actions below 285 DIP");
   Console.WriteLine($"Tile height: {card!.ActualHeight:0.#} DIP");
+  p.SelectedAsset=p.Assets.Single(a=>a.Hostname=="DEMO-CAD");Layout(root,1920,1080);
   Capture(root,"01-inventory");
   p.ManageAssetCommand.Execute(null);Layout(root,1920,1080);Capture(root,"02-manage-asset");
   p.InspectorTab=2;p.DetailCategory="Security";p.SelectedDetailSection=p.DetailSections.First(s=>s.Title=="Local account details");Layout(root,1920,1080);Capture(root,"03-scan-details");
@@ -96,6 +93,7 @@ internal static class Program
   p.Accent="Violet";p.TileMinimumWidth=320;p.ShowInspector=false;Layout(root,1920,1080);
   p.Accent="Ion cyan";p.TileMinimumWidth=280;Layout(root,1536,864);p.ShowInspector=true;Layout(root,1536,864);
   Check(((Grid)preview.FindName("FleetPanel")).ActualWidth>700,"Full HD at 125 percent retains usable cards");
+  Check(((System.Windows.Controls.Primitives.UniformGrid)preview.FindName("FleetMetrics")).Columns==4,"Full HD at 125 percent keeps metrics in one compact row");
   Capture(root,"05-scale-125",120);
   Console.WriteLine("PASS: bound refresh, all example TXT files, watched folder additions, large RAM, managed assignment, persistence, empty selection and responsive WPF screens");
   p.DisposeWorkspace();Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();Directory.Delete(temp,true);return 0;
