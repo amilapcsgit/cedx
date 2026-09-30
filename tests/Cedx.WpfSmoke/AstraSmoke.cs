@@ -66,9 +66,17 @@ internal static class AstraSmoke
         var tile=((ListBox)preview.FindName("AstraResults")).ItemContainerGenerator.ContainerFromIndex(0) as ListBoxItem;
         Check(tile is not null&&tile.ActualHeight<310,"Astra cards keep readable controls in compact height");
         Console.WriteLine($"Astra tile height: {tile!.ActualHeight:0.#} DIP");
+        var second=((ListBox)preview.FindName("AstraResults")).ItemContainerGenerator.ContainerFromIndex(1) as ListBoxItem;
+        Check(second is not null&&second.TranslatePoint(new Point(0,0),root).X-tile!.TranslatePoint(new Point(tile.ActualWidth,0),root).X>=10,"Astra cards have a clear horizontal gap");
+        var remote=p.Results.First();remote.Asset.Network.AnyDeskId="123456789";p.Search=remote.Asset.Hostname;
+        Check(p.RemoteRatio=="1/1"&&!p.RemoteArc.IsEmpty()&&p.RemoteArc.Bounds.Width>100,"Remote gauge represents available IDs with real geometry");
+        remote.Asset.Network.AnyDeskId="Not installed";p.Search="";p.Selected=p.Results.Single(x=>x.Asset.Hostname=="DEMO-CAD");Layout(root,1920,1080);
         Capture(root,"06-astra-mission-control");
         p.Scope="Review TXT";p.Selected=p.Results.Single(x=>x.Asset.Hostname=="DEMO-CAD");((TabControl)preview.FindName("AstraTabs")).SelectedIndex=2;Layout(root,1920,1080);Capture(root,"07-astra-review");
-        p.Scope="Current assets";p.Search="Sample operator";((TabControl)preview.FindName("AstraTabs")).SelectedIndex=1;Layout(root,1920,1080);Capture(root,"08-astra-assignment");
+        p.Scope="Current assets";p.Search="Sample operator";((TabControl)preview.FindName("AstraTabs")).SelectedIndex=1;Layout(root,1920,1080);
+        var single=((ListBox)preview.FindName("AstraResults")).ItemContainerGenerator.ContainerFromIndex(0) as ListBoxItem;
+        Check(single is not null&&single.ActualWidth<400,"Single search result stays compact");
+        Capture(root,"08-astra-assignment");
         Layout(root,1040,800);Check(((Grid)preview.FindName("ResultWorkspace")).Visibility==Visibility.Visible,"Compact Astra keeps lookup visible");
         p.ShowDetails=true;Layout(root,1040,800);Check(((Border)preview.FindName("AstraInspector")).ActualWidth>600,"Compact Astra gives inspector usable width");Capture(root,"09-astra-compact");
         p.Search="";((TabControl)preview.FindName("AstraTabs")).SelectedIndex=0;Layout(root,1536,864);p.ShowDetails=true;Layout(root,1536,864);Capture(root,"10-astra-125",120);

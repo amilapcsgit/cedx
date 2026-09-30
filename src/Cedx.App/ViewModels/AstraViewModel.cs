@@ -160,7 +160,9 @@ public sealed partial class AstraViewModel : ObservableObject, IDisposable
         var pool=Scope switch{"Review TXT"=>_staged,"Archived"=>_stored.Where(x=>x.Asset.Assignment.Lifecycle=="Retired"),"Demo"=>_demos,_=>_stored.Where(x=>x.Asset.Assignment.Lifecycle!="Retired")};
         var terms=Regex.Matches(Search.Trim(),"\"([^\"]+)\"|(\\S+)").Select(m=>m.Groups[1].Success?m.Groups[1].Value:m.Groups[2].Value).ToArray();
         Results=pool.Where(x=>(!RemoteOnly||x.Asset.HasAnyDesk)&&(!DuplicatesOnly||!IsReview||x.Duplicate)&&terms.All(t=>x.SearchIndex.Contains(t,StringComparison.OrdinalIgnoreCase))).OrderBy(x=>x.Person,StringComparer.OrdinalIgnoreCase).ThenBy(x=>x.Asset.Hostname,StringComparer.OrdinalIgnoreCase).ThenByDescending(x=>x.Asset.LastModified).ToArray();
-        foreach(var row in Results){var lines=AssetDetails.RedactKeys(row.Asset.RawContent).Replace("\0","").Split('\n');var evidence=terms.Length>0?lines.FirstOrDefault(l=>terms.Any(t=>l.Contains(t,StringComparison.OrdinalIgnoreCase))):null;row.Evidence=evidence?.Trim()??row.Asset.OrganizationDisplay;}
+        foreach(var row in Results){var lines=AssetDetails.RedactKeys(row.Asset.RawContent).Replace("\0","").Split('\n');var assignment=string.Join(" / ",new[]{row.Asset.Person,row.Asset.Company,row.Asset.Department,row.Asset.Location}.Where(value=>!string.IsNullOrWhiteSpace(value)));
+            var evidence=terms.Length==0?null:terms.All(t=>assignment.Contains(t,StringComparison.OrdinalIgnoreCase))?"Assigned: "+assignment:lines.FirstOrDefault(l=>terms.All(t=>l.Contains(t,StringComparison.OrdinalIgnoreCase)))??lines.FirstOrDefault(l=>terms.Any(t=>l.Contains(t,StringComparison.OrdinalIgnoreCase)));
+            row.Evidence=evidence?.Trim()??row.Asset.OrganizationDisplay;}
         Selected=Results.FirstOrDefault(x=>x.Key==key)??Results.FirstOrDefault();
         OnPropertyChanged(nameof(ResultCount));OnPropertyChanged(nameof(ReadyCount));OnPropertyChanged(nameof(OlderCount));UpdateVisuals();RaiseCommands();
     }
