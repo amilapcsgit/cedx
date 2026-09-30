@@ -98,12 +98,19 @@ public sealed class InventoryDatabase
         history.Parameters.AddWithValue("$source", record.SourceFilePath); history.Parameters.Add("$raw", SqliteType.Blob).Value = rawBytes; history.ExecuteNonQuery();
         tx.Commit(); return isNew ? "Added" : newer ? "Updated" : "History only";
     }
-    private static string Identity(AssetRecord a, bool sample)
+    public static string Identity(AssetRecord a, bool sample)
     {
         // Host + domain, never IP: DHCP changes must not create a new asset. Different non-placeholder serials stay separate.
         var serial = a.SerialNumber.Trim();
         if (new[]{"", "unknown", "n/a", "none", "default string", "system serial number", "to be filled by o.e.m.", "0"}.Contains(serial, StringComparer.OrdinalIgnoreCase)) serial = "";
         return $"{sample}|{a.PcDomain.Trim().ToUpperInvariant()}|{a.Hostname.Trim().ToUpperInvariant()}|{serial.ToUpperInvariant()}";
+    }
+    public void RelinkSource(string originalPath, string newPath)
+    {
+        using var db = Open(); using var tx = db.BeginTransaction(); using var c = db.CreateCommand(); c.Transaction = tx;
+        c.CommandText = "UPDATE assets SET source=$new WHERE source=$old; UPDATE revisions SET source=$new WHERE source=$old;";
+        c.Parameters.AddWithValue("$old", originalPath); c.Parameters.AddWithValue("$new", newPath);
+        c.ExecuteNonQuery(); tx.Commit();
     }
     public void SaveAssignment(string id, AssetAssignment assignment)
     {

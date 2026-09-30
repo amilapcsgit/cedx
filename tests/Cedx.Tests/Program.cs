@@ -96,5 +96,18 @@ try{
  store.Import([old]);Check(store.Load().Single(x=>x.AssetId==saved.AssetId).RawContent.Contains("Added field"),"Older report does not overwrite current");
  var backup=Path.Combine(temp,"backup.db");store.Backup(backup);Check(new Cedx.Core.Storage.InventoryDatabase(backup).Load().Count==2,"Restorable database backup");
  File.Delete(file);Check(new Cedx.Core.Storage.InventoryDatabase(store.Path).Load().Count==2,"Source removal does not remove stored asset");
+ var reviewDir=Path.Combine(temp,"review");Directory.CreateDirectory(reviewDir);
+ var reviewFile=Path.Combine(reviewDir,"source.txt");File.WriteAllText(reviewFile,report);
+ var review=new ScanReviewService();var staged=review.Read(reviewFile);
+ Check(review.Scan(reviewDir).Scans.Count==1,"Preview folder discovers scans without import");
+ var renamed=review.Rename(staged,"renamed.txt");Check(!File.Exists(reviewFile)&&File.Exists(renamed),"Rename preserves report");
+ staged=review.Read(renamed);var backupFile=review.Save(staged,report+"\nUser Email(s): operator@example.invalid\n");
+ Check(File.ReadAllText(backupFile)==report&&review.Scan(reviewDir).Scans.Count==1,"Edit keeps exact backup outside TXT inventory");
+ bool conflict=false;try{review.Save(staged,report);}catch(IOException){conflict=true;}Check(conflict,"Stale preview cannot overwrite changed scan");
+ staged=review.Read(renamed);Check(new AssetQuery{Search="operator@example.invalid"}.Matches(staged.Asset),"Email lookup reaches scan index");
+ var removed=review.Remove(staged);Check(review.Scan(reviewDir).Scans.Count==0&&File.Exists(removed.RecoveryPath),"Removed scan excluded but recoverable");
+ review.Restore(removed);Check(File.Exists(renamed),"Removed scan can be restored");
+ var collision=Path.Combine(reviewDir,"occupied.txt");File.WriteAllText(collision,report);conflict=false;
+ try{review.Rename(review.Read(renamed),"occupied.txt");}catch(IOException){conflict=true;}Check(conflict&&File.Exists(renamed),"Rename refuses to overwrite another TXT");
  Console.WriteLine($"PASS: {checks} total parser, filter, persistence and import checks");
 }finally{Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();Directory.Delete(temp,true);}
