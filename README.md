@@ -1,17 +1,27 @@
-# CEDX · Windows asset workspace
+# CEDX · Astra and classic Windows workspaces
 
-A native WPF inventory application for turning collector TXT reports into a maintained asset register. This branch is `cedexadvancesui`, based on the functional `cedxadnacedexe` workspace.
+## Astra mission control on `cedxadvuirefresh`
 
-## Run in one click
+Double-click **`astraui.bat`** for the alternative search-first WPF UI: compact petrol/cyan cards, direct AnyDesk access, technical inspector and reviewed inventory. Search PC names, Windows accounts, email addresses or any name in a TXT report. Rename, edit with backup and remove duplicate source files recoverably, then explicitly approve only current reports into the separate Astra database.
 
-1. Download **this entire branch** and extract it, or clone and check out `cedexadvancesui`.
+![Astra mission control](docs/screenshots/06-astra-mission-control.png)
+
+[Launch, daily workflow, file recovery and screenshots](docs/ASTRA.md) · [Implementation checkpoints](docs/ASTRA-PROGRESS.md)
+
+**`Build-and-Run-CEDX.bat`** continues to launch the classic UI documented below. The two applications keep separate databases; changes to a shared TXT source folder affect that folder for both.
+
+A native WPF inventory application for turning collector TXT reports into a maintained asset register. The classic UI comes from `cedexadvancesui`; this branch adds the alternative Astra window.
+
+## Run the classic UI in one click
+
+1. Download **this entire branch** and extract it, or clone and check out `cedxadvuirefresh`.
 2. Install the **.NET 8 SDK for Windows x64** if it is not already installed.
 3. Double-click **Build-and-Run-CEDX.bat**. The first build needs internet access to restore .NET and SQLite packages.
 4. Choose **Import folder** for your existing TXT directory, or **Import TXT files** for individual reports. Dragging TXT files or folders into the window also works.
 
 The BAT compiles a self-contained Windows x64 application into `artifacts\cedxadnacedexe`. Keep that entire folder together. After the first build, launch `Cedx.App.exe` directly; the destination PC does not need a separate .NET runtime. Close the application before rebuilding. Build diagnostics are saved in `artifacts\build.log`; `--build-only` skips launch.
 
-## UI improvements in this branch
+## Classic UI improvements
 
 - No unused white client border. The Window theme is explicitly applied; content fills the client area in normal and maximized mode.
 - The original CEDX midnight-blue palette is restored: blue/violet glass panels, white hostnames, teal users, blue IPs, magenta remote IDs and amber storage warnings.
