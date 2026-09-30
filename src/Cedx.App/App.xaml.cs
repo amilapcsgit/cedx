@@ -1,13 +1,10 @@
-﻿using System.Configuration;
-using System.Data;
 using System.Windows;
-
 namespace Cedx.App;
-
-/// <summary>
-/// Interaction logic for App.xaml
-/// </summary>
 public partial class App : Application
 {
+    private void Application_Startup(object sender, StartupEventArgs e)
+    {
+        Window window=e.Args.Contains("--astra",StringComparer.OrdinalIgnoreCase)?new AstraWindow():new MainWindow();
+        MainWindow=window;window.Show();
+    }
 }
-

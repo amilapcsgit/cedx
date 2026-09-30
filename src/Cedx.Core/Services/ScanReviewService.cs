@@ -36,7 +36,7 @@ public sealed class ScanReviewService
         {
             foreach (var path in Directory.EnumerateFiles(folder, "*", options).Where(p => Path.GetExtension(p).Equals(".txt", StringComparison.OrdinalIgnoreCase)))
                 try { rows.Add(Read(path)); }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+                catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
                 { errors.Add($"{Path.GetFileName(path)}: {ex.Message}"); }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { errors.Add(ex.Message); }

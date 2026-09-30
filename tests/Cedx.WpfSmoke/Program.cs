@@ -96,7 +96,7 @@ internal static class Program
   Check(((System.Windows.Controls.Primitives.UniformGrid)preview.FindName("FleetMetrics")).Columns==4,"Full HD at 125 percent keeps metrics in one compact row");
   Capture(root,"05-scale-125",120);
   Console.WriteLine("PASS: bound refresh, all example TXT files, watched folder additions, large RAM, managed assignment, persistence, empty selection and responsive WPF screens");
-  p.DisposeWorkspace();Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();Directory.Delete(temp,true);return 0;
+  p.DisposeWorkspace();AstraSmoke.Run(temp);Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();Directory.Delete(temp,true);return 0;
  }
  static void Layout(FrameworkElement root,double w,double h){root.Width=w;root.Height=h;root.Measure(new Size(w,h));root.Arrange(new Rect(0,0,w,h));root.UpdateLayout();Pump();root.Measure(new Size(w,h));root.Arrange(new Rect(0,0,w,h));root.UpdateLayout();}
  static void Capture(FrameworkElement root,string name,double dpi=96){var bitmap=new RenderTargetBitmap((int)Math.Round(root.ActualWidth*dpi/96),(int)Math.Round(root.ActualHeight*dpi/96),dpi,dpi,PixelFormats.Pbgra32);bitmap.Render(root);var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var file=File.Create($"artifacts/ui-smoke/{name}.png");encoder.Save(file);}

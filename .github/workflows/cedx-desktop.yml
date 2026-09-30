@@ -18,6 +18,9 @@ jobs:
       - name: Build the desktop package using the same user launcher
         shell: cmd
         run: Build-and-Run-CEDX.bat --build-only
+      - name: Build alternative Astra launcher
+        shell: cmd
+        run: astraui.bat --build-only
       - name: Exercise WPF layout and filtering
         run: dotnet run --project tests/Cedx.WpfSmoke -c Release
       - uses: actions/upload-artifact@v4
@@ -26,4 +29,5 @@ jobs:
           name: cedx-desktop-validation
           path: |
             artifacts/build.log
+            artifacts/astra-build.log
             artifacts/ui-smoke/
