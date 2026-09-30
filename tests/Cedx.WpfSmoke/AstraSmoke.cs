@@ -39,7 +39,7 @@ internal static class AstraSmoke
         Check(db.Load().Single().RamGb==64,"TXT edits do not change approved inventory before review");
         Wait(vm.ApproveAsync());var updated=db.Load().Single();
         Check(updated.RamGb==96&&updated.AssetId==id&&updated.Person=="Sample operator","Approved update preserves identity and assignment");
-        Wait(vm.SetArchivedAsync(true));Check(vm.CurrentCount==0&&vm.ArchiveCount==1&&db.History(id).Count==2,"Archive retains scan history");
+        Wait(vm.SetArchivedAsync(true));Console.WriteLine($"Archive verification: current={vm.CurrentCount}, archived={vm.ArchiveCount}, revisions={db.History(id).Count}, status={vm.Status}");Check(vm.CurrentCount==0&&vm.ArchiveCount==1&&db.History(id).Count==2,"Archive retains scan history");
         vm.Scope="Archived";Wait(vm.SetArchivedAsync(false));Check(vm.CurrentCount==1&&vm.ArchiveCount==0,"Archived asset restores to current inventory");
         vm.Scope="Review TXT";vm.Selected=vm.Results.Single(x=>x.Asset.SourceFileName=="copy.txt");Wait(vm.RemoveAsync());
         Check(vm.ReviewCount==2&&db.Load().Count==1,"Removing duplicate TXT leaves approved asset intact");

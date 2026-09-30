@@ -38,8 +38,9 @@ public sealed partial class AstraViewModel : ObservableObject, IDisposable
     private IReadOnlyList<AstraItem> _stored = [], _staged = [], _demos = [], _results = [];
     private string _scope="Current assets", _search="", _folder, _status="Ready", _filename="", _fileErrors="";
     private AstraItem? _selected;
-    private bool _busy, _remoteOnly, _duplicatesOnly, _showDetails=true, _pendingRefresh;
+    private bool _busy, _remoteOnly, _duplicatesOnly, _showDetails=true;
     private FileSystemWatcher? _watcher;
+    private readonly SemaphoreSlim _operationGate=new(1,1);
     private readonly DispatcherTimer _watchTimer = new() { Interval=TimeSpan.FromMilliseconds(900) };
     private RemovedScan? _removed;
     public MainViewModel Inspector { get; }
@@ -96,9 +97,16 @@ public sealed partial class AstraViewModel : ObservableObject, IDisposable
         _database=database??new InventoryDatabase(Path.Combine(home,"astra-assets.db"));
         _preferences=preferences?Path.Combine(home,"astra-workspace.json"):null;
         _folder=folder??AssetFolderLocator.FindDefaultFolder(Environment.CurrentDirectory,AppContext.BaseDirectory);
-        try { if(_preferences is not null&&File.Exists(_preferences))_folder=JsonSerializer.Deserialize<string>(File.ReadAllText(_preferences))??_folder; }
+        AstraPreferences? preferencesValue=null;
+        try { if(_preferences is not null&&File.Exists(_preferences)){
+            var json=File.ReadAllText(_preferences);
+            using var document=JsonDocument.Parse(json);
+            if(document.RootElement.ValueKind==JsonValueKind.String)_folder=document.RootElement.GetString()??_folder;
+            else {preferencesValue=JsonSerializer.Deserialize<AstraPreferences>(json);if(preferencesValue is not null){_folder=preferencesValue.Folder;CardWidth=preferencesValue.CardWidth;}}
+        } }
         catch(Exception ex) when(ex is IOException or JsonException){_status="Source preference could not be loaded: "+ex.Message;}
         Inspector=new MainViewModel(new FileAssetRepository(new AssetTextParser()),_database,false){WatchFolder=false};
+        if(preferencesValue is not null&&Inspector.AccentOptions.Contains(preferencesValue.Accent))Inspector.Accent=preferencesValue.Accent;
         Inspector.PropertyChanged+=(_,e)=>{if(e.PropertyName==nameof(MainViewModel.StatusMessage))Status=Inspector.StatusMessage;};
         RefreshCommand=new(_=>RefreshAsync());
         ChooseFolderCommand=new(async _=>{var d=new OpenFolderDialog{Title="Review TXT scan folder",InitialDirectory=Directory.Exists(SourceFolder)?SourceFolder:Environment.CurrentDirectory};if(d.ShowDialog()==true){SourceFolder=d.FolderName;Scope="Review TXT";await RefreshAsync();}},_=>!IsBusy);
@@ -124,10 +132,10 @@ public sealed partial class AstraViewModel : ObservableObject, IDisposable
     public Task RefreshAsync()=>Run(async()=>{await ReloadAsync();Status=$"{CurrentCount} current assets · {ReviewCount} source files · {FileErrors.Split('\n',StringSplitOptions.RemoveEmptyEntries).Length} file issues";});
     private async Task Run(Func<Task> action)
     {
-        if(IsBusy){_pendingRefresh=true;return;}
+        await _operationGate.WaitAsync();
         IsBusy=true;
         try{await action();}catch(Exception ex){Status="Operation failed: "+ex.Message;}
-        finally{IsBusy=false;if(_pendingRefresh){_pendingRefresh=false;await RefreshAsync();}}
+        finally{IsBusy=false;_operationGate.Release();}
     }
     private async Task ReloadAsync()
     {
@@ -162,7 +170,7 @@ public sealed partial class AstraViewModel : ObservableObject, IDisposable
         var result=await Task.Run(()=>_database.Upsert(verified.Asset));
         var stored=(await Task.Run(()=>_database.Load())).Single(x=>InventoryDatabase.Identity(x,false)==source.Identity);
         if(!stored.IsManaged)_database.SaveAssignment(stored.AssetId,stored.Assignment);
-        await ReloadAsync();Scope="Current assets";Search="";RemoteOnly=false;Selected=Results.FirstOrDefault(x=>x.Asset.AssetId==stored.AssetId);
+        await ReloadAsync();Scope=stored.Assignment.Lifecycle=="Retired"?"Archived":"Current assets";Search="";RemoteOnly=false;Selected=Results.FirstOrDefault(x=>x.Asset.AssetId==stored.AssetId);
         Status=$"{result}: {verified.Asset.Hostname}. Only this reviewed report was submitted.";
     });
     public Task SaveAssignmentAsync()=>Run(async()=>{if(Selected?.Stored!=true)return;Inspector.SaveSelectedAsset();await ReloadAsync();Status="Assignment saved.";});
@@ -171,7 +179,12 @@ public sealed partial class AstraViewModel : ObservableObject, IDisposable
         var original=source.Asset.SourceFilePath;var target=await Task.Run(()=>_review.Rename(source,Filename));
         _database.RelinkSource(original,target);await ReloadAsync();Selected=Results.FirstOrDefault(x=>x.Asset.SourceFilePath==target);Status="TXT renamed; stored source references updated.";
     });
-    public Task SaveTextAsync(ReviewScan source,string text)=>Run(async()=>{var backup=await Task.Run(()=>_review.Save(source,text));await ReloadAsync();Status="TXT saved. Review and approve to update inventory. Backup: "+backup;});
+    public async Task<bool> SaveTextAsync(ReviewScan source,string text)
+    {
+        var saved=false;
+        await Run(async()=>{var backup=await Task.Run(()=>_review.Save(source,text));saved=true;await ReloadAsync();Status="TXT saved. Review and approve to update inventory. Backup: "+backup;});
+        return saved;
+    }
     public Task RemoveAsync()=>Run(async()=>{if(Selected?.Source is not {} source)return;_removed=await Task.Run(()=>_review.Remove(source));await ReloadAsync();Status="TXT removed from review. Undo removal is available; saved inventory is unchanged.";});
     public Task UndoRemoveAsync()=>Run(async()=>{if(_removed is null)return;await Task.Run(()=>_review.Restore(_removed));_removed=null;await ReloadAsync();Status="Source TXT restored.";});
     public Task SetArchivedAsync(bool archive)=>Run(async()=>{if(Selected?.Stored!=true)return;_database.SaveAssignment(Selected.Asset.AssetId,Selected.Asset.Assignment with{Lifecycle=archive?"Retired":"In service"});await ReloadAsync();Status=archive?"Asset archived. History and source TXT retained.":"Asset restored to current inventory.";});
@@ -201,9 +214,10 @@ public sealed partial class AstraViewModel : ObservableObject, IDisposable
         try{var d=new SaveFileDialog{Filter="CSV (*.csv)|*.csv",FileName="astra-inventory.csv"};if(d.ShowDialog()==true){File.WriteAllText(d.FileName,CreateCsv(),new UTF8Encoding(true));Status="Visible results exported.";}}
         catch(Exception ex){Status="Export failed: "+ex.Message;}
     }
+    private sealed record AstraPreferences(string Folder,string Accent,double CardWidth);
     public void Dispose()
     {
         _watcher?.Dispose();_watchTimer.Stop();Inspector.DisposeWorkspace();
-        try{if(_preferences is not null){Directory.CreateDirectory(Path.GetDirectoryName(_preferences)!);File.WriteAllText(_preferences,JsonSerializer.Serialize(SourceFolder));}}catch(IOException){}
+        try{if(_preferences is not null){Directory.CreateDirectory(Path.GetDirectoryName(_preferences)!);File.WriteAllText(_preferences,JsonSerializer.Serialize(new AstraPreferences(SourceFolder,Inspector.Accent,CardWidth)));}}catch(IOException){}
     }
 }
