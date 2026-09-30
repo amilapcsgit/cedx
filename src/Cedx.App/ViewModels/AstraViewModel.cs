@@ -30,7 +30,7 @@ public sealed class AstraItem(AssetRecord asset, ReviewScan? source, bool stored
     public string Evidence { get => _evidence; set => SetProperty(ref _evidence,value); }
 }
 
-public sealed class AstraViewModel : ObservableObject, IDisposable
+public sealed partial class AstraViewModel : ObservableObject, IDisposable
 {
     private readonly InventoryDatabase _database;
     private readonly ScanReviewService _review = new();
@@ -99,6 +99,7 @@ public sealed class AstraViewModel : ObservableObject, IDisposable
         try { if(_preferences is not null&&File.Exists(_preferences))_folder=JsonSerializer.Deserialize<string>(File.ReadAllText(_preferences))??_folder; }
         catch(Exception ex) when(ex is IOException or JsonException){_status="Source preference could not be loaded: "+ex.Message;}
         Inspector=new MainViewModel(new FileAssetRepository(new AssetTextParser()),_database,false){WatchFolder=false};
+        Inspector.PropertyChanged+=(_,e)=>{if(e.PropertyName==nameof(MainViewModel.StatusMessage))Status=Inspector.StatusMessage;};
         RefreshCommand=new(_=>RefreshAsync());
         ChooseFolderCommand=new(async _=>{var d=new OpenFolderDialog{Title="Review TXT scan folder",InitialDirectory=Directory.Exists(SourceFolder)?SourceFolder:Environment.CurrentDirectory};if(d.ShowDialog()==true){SourceFolder=d.FolderName;Scope="Review TXT";await RefreshAsync();}},_=>!IsBusy);
         ApproveCommand=new(_=>ApproveAsync(),_=>CanModify);
@@ -153,7 +154,7 @@ public sealed class AstraViewModel : ObservableObject, IDisposable
         Results=pool.Where(x=>(!RemoteOnly||x.Asset.HasAnyDesk)&&(!DuplicatesOnly||!IsReview||x.Duplicate)&&terms.All(t=>x.SearchIndex.Contains(t,StringComparison.OrdinalIgnoreCase))).OrderBy(x=>x.Person,StringComparer.OrdinalIgnoreCase).ThenBy(x=>x.Asset.Hostname,StringComparer.OrdinalIgnoreCase).ThenByDescending(x=>x.Asset.LastModified).ToArray();
         foreach(var row in Results){var lines=AssetDetails.RedactKeys(row.Asset.RawContent).Replace("\0","").Split('\n');var evidence=terms.Length>0?lines.FirstOrDefault(l=>terms.Any(t=>l.Contains(t,StringComparison.OrdinalIgnoreCase))):null;row.Evidence=evidence?.Trim()??row.Asset.OrganizationDisplay;}
         Selected=Results.FirstOrDefault(x=>x.Key==key)??Results.FirstOrDefault();
-        OnPropertyChanged(nameof(ResultCount));OnPropertyChanged(nameof(ReadyCount));OnPropertyChanged(nameof(OlderCount));RaiseCommands();
+        OnPropertyChanged(nameof(ResultCount));OnPropertyChanged(nameof(ReadyCount));OnPropertyChanged(nameof(OlderCount));UpdateVisuals();RaiseCommands();
     }
     public Task ApproveAsync()=>Run(async()=>{
         if(Selected?.Source is not {} source)return;

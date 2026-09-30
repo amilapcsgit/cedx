@@ -61,6 +61,11 @@ internal static class AstraSmoke
         var root=(FrameworkElement)preview.Content;root.DataContext=p;
         Directory.CreateDirectory("artifacts/ui-smoke");Layout(root,1920,1080);p.ShowDetails=true;Layout(root,1920,1080);
         Check(p.Results.Count==6&&Grid.GetColumn((Border)preview.FindName("AstraInspector"))==4,"Astra Full HD shows six current assets and docked inspector");
+        Check(p.OsSegments.Sum(s=>s.Count)==6&&p.OsSegments.Count==3,"Astra OS chart uses visible records");
+        Check(p.ReadyCount==0&&p.RemoteArc.IsEmpty(),"Missing remote IDs do not create a false gauge");
+        var tile=((ListBox)preview.FindName("AstraResults")).ItemContainerGenerator.ContainerFromIndex(0) as ListBoxItem;
+        Check(tile is not null&&tile.ActualHeight<310,"Astra cards keep readable controls in compact height");
+        Console.WriteLine($"Astra tile height: {tile!.ActualHeight:0.#} DIP");
         Capture(root,"06-astra-mission-control");
         p.Scope="Review TXT";p.Selected=p.Results.Single(x=>x.Asset.Hostname=="DEMO-CAD");((TabControl)preview.FindName("AstraTabs")).SelectedIndex=2;Layout(root,1920,1080);Capture(root,"07-astra-review");
         p.Scope="Current assets";p.Search="Sample operator";((TabControl)preview.FindName("AstraTabs")).SelectedIndex=1;Layout(root,1920,1080);Capture(root,"08-astra-assignment");
