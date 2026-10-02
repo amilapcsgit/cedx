@@ -95,6 +95,11 @@ try{
  var old=Path.Combine(temp,"older.txt");File.WriteAllText(old,report+"\nOlder revision\n");File.SetLastWriteTimeUtc(old,DateTime.UtcNow.AddDays(-10));
  store.Import([old]);Check(store.Load().Single(x=>x.AssetId==saved.AssetId).RawContent.Contains("Added field"),"Older report does not overwrite current");
  var backup=Path.Combine(temp,"backup.db");store.Backup(backup);Check(new Cedx.Core.Storage.InventoryDatabase(backup).Load().Count==2,"Restorable database backup");
+ var jsonBackup=Path.Combine(temp,"backup.json");store.ExportJson(jsonBackup);
+ var restoredStore=new Cedx.Core.Storage.InventoryDatabase(Path.Combine(temp,"restored.db"));restoredStore.RestoreJson(jsonBackup);
+ var restoredAssets=restoredStore.Load();
+ Check(restoredAssets.Count==2&&restoredAssets.Single(x=>x.AssetId==saved.AssetId).Assignment==assignment,"JSON backup restores stable IDs and assignments");
+ Check(restoredStore.History(saved.AssetId).Count==store.History(saved.AssetId).Count,"JSON backup restores scan history");
  File.Delete(file);Check(new Cedx.Core.Storage.InventoryDatabase(store.Path).Load().Count==2,"Source removal does not remove stored asset");
  var reviewDir=Path.Combine(temp,"review");Directory.CreateDirectory(reviewDir);
  var reviewFile=Path.Combine(reviewDir,"source.txt");File.WriteAllText(reviewFile,report);

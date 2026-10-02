@@ -88,6 +88,8 @@ public sealed partial class AstraViewModel : ObservableObject, IDisposable
     public RelayCommand ClearCommand {get;}
     public RelayCommand ExportCommand {get;}
     public RelayCommand BackupCommand=>Inspector.BackupCommand;
+    public RelayCommand JsonBackupCommand {get;}
+    public RelayCommand JsonRestoreCommand {get;}
     public event Action<ReviewScan>? EditRequested;
     public RelayCommand EditCommand {get;}
 
@@ -102,10 +104,11 @@ public sealed partial class AstraViewModel : ObservableObject, IDisposable
             var json=File.ReadAllText(_preferences);
             using var document=JsonDocument.Parse(json);
             if(document.RootElement.ValueKind==JsonValueKind.String)_folder=document.RootElement.GetString()??_folder;
-            else {preferencesValue=JsonSerializer.Deserialize<AstraPreferences>(json);if(preferencesValue is not null){_folder=preferencesValue.Folder;CardWidth=preferencesValue.CardWidth;}}
+            else {preferencesValue=JsonSerializer.Deserialize<AstraPreferences>(json);if(preferencesValue is not null){_folder=preferencesValue.Folder;CardWidth=preferencesValue.CardWidth;_hasSavedFilterSettings=preferencesValue.VisibleFilters is not null;_savedVisibleFilters=new(preferencesValue.VisibleFilters??[],StringComparer.OrdinalIgnoreCase);foreach(var id in preferencesValue.CustomFilters??[]){var parts=id.Split('\u001f',2);if(parts.Length==2)_customFilters.Add((parts[0],parts[1]));}}}
         } }
         catch(Exception ex) when(ex is IOException or JsonException){_status="Source preference could not be loaded: "+ex.Message;}
         Inspector=new MainViewModel(new FileAssetRepository(new AssetTextParser()),_database,false){WatchFolder=false};
+        InitializeFilterCommands();
         if(preferencesValue is not null&&Inspector.AccentOptions.Contains(preferencesValue.Accent))Inspector.Accent=preferencesValue.Accent;
         Inspector.PropertyChanged+=(_,e)=>{if(e.PropertyName==nameof(MainViewModel.StatusMessage))Status=Inspector.StatusMessage;};
         RefreshCommand=new(_=>RefreshAsync());
@@ -119,9 +122,11 @@ public sealed partial class AstraViewModel : ObservableObject, IDisposable
         RestoreCommand=new(_=>SetArchivedAsync(false),_=>CanManage&&Scope=="Archived");
         ScopeCommand=new(p=>Scope=(string)p!);
         OpenDetailsCommand=new(p=>{if(p is AstraItem item)Selected=item;ShowDetails=true;});
-        ClearCommand=new(_=>{Search="";RemoteOnly=false;DuplicatesOnly=false;});
+        ClearCommand=new(_=>{Search="";RemoteOnly=false;DuplicatesOnly=false;foreach(var filter in FilterChoices)filter.IsActive=false;});
         EditCommand=new(_=>{if(Selected?.Source is {} scan)EditRequested?.Invoke(scan);},_=>CanModify);
         ExportCommand=new(_=>Export(),_=>!IsBusy&&Results.Count>0);
+        JsonBackupCommand=new(_=>ExportJsonBackup(),_=>!IsBusy);
+        JsonRestoreCommand=new(_=>RestoreJsonBackup(),_=>!IsBusy);
         _watchTimer.Tick+=async (_,_)=>{_watchTimer.Stop();await RefreshAsync();};
     }
     public async Task InitializeAsync()
@@ -151,7 +156,7 @@ public sealed partial class AstraViewModel : ObservableObject, IDisposable
         }).ToArray();
         if(_demos.Count==0){var samples=Path.Combine(AppContext.BaseDirectory,"samples");if(Directory.Exists(samples))_demos=(await Task.Run(()=>_review.Scan(samples))).Scans.Select(x=>new AstraItem(x.Asset,null,false,true)).ToArray();}
         FileErrors=string.Join('\n',folder.Errors);
-        Filter();StartWatcher();
+        RebuildFilterChoices();Filter();StartWatcher();
         foreach(var property in new[]{nameof(CurrentCount),nameof(ReviewCount),nameof(ArchiveCount),nameof(DuplicateCount)})OnPropertyChanged(property);
     }
     private void Filter()
@@ -159,7 +164,7 @@ public sealed partial class AstraViewModel : ObservableObject, IDisposable
         var key=Selected?.Key;
         var pool=Scope switch{"Review TXT"=>_staged,"Archived"=>_stored.Where(x=>x.Asset.Assignment.Lifecycle=="Retired"),"Demo"=>_demos,_=>_stored.Where(x=>x.Asset.Assignment.Lifecycle!="Retired")};
         var terms=Regex.Matches(Search.Trim(),"\"([^\"]+)\"|(\\S+)").Select(m=>m.Groups[1].Success?m.Groups[1].Value:m.Groups[2].Value).ToArray();
-        Results=pool.Where(x=>(!RemoteOnly||x.Asset.HasAnyDesk)&&(!DuplicatesOnly||!IsReview||x.Duplicate)&&terms.All(t=>x.SearchIndex.Contains(t,StringComparison.OrdinalIgnoreCase))).OrderBy(x=>x.Person,StringComparer.OrdinalIgnoreCase).ThenBy(x=>x.Asset.Hostname,StringComparer.OrdinalIgnoreCase).ThenByDescending(x=>x.Asset.LastModified).ToArray();
+        Results=pool.Where(x=>(!RemoteOnly||x.Asset.HasAnyDesk)&&(!DuplicatesOnly||!IsReview||x.Duplicate)&&MatchesQuickFilters(x.Asset)&&terms.All(t=>x.SearchIndex.Contains(t,StringComparison.OrdinalIgnoreCase))).OrderBy(x=>x.Person,StringComparer.OrdinalIgnoreCase).ThenBy(x=>x.Asset.Hostname,StringComparer.OrdinalIgnoreCase).ThenByDescending(x=>x.Asset.LastModified).ToArray();
         foreach(var row in Results){var lines=AssetDetails.RedactKeys(row.Asset.RawContent).Replace("\0","").Split('\n');var assignment=string.Join(" / ",new[]{row.Asset.Person,row.Asset.Company,row.Asset.Department,row.Asset.Location}.Where(value=>!string.IsNullOrWhiteSpace(value)));
             var evidence=terms.Length==0?null:terms.All(t=>assignment.Contains(t,StringComparison.OrdinalIgnoreCase))?"Assigned: "+assignment:lines.FirstOrDefault(l=>terms.All(t=>l.Contains(t,StringComparison.OrdinalIgnoreCase)))??lines.FirstOrDefault(l=>terms.Any(t=>l.Contains(t,StringComparison.OrdinalIgnoreCase)));
             row.Evidence=evidence?.Trim()??row.Asset.OrganizationDisplay;}
@@ -202,13 +207,14 @@ public sealed partial class AstraViewModel : ObservableObject, IDisposable
     private void RaiseCommands()
     {
         foreach(var c in new[]{ChooseFolderCommand,ApproveCommand,RenameCommand,RemoveCommand,UndoRemoveCommand,SaveAssignmentCommand,ArchiveCommand,RestoreCommand})c?.RaiseCanExecuteChanged();
+        JsonBackupCommand?.RaiseCanExecuteChanged();JsonRestoreCommand?.RaiseCanExecuteChanged();
         EditCommand?.RaiseCanExecuteChanged();ExportCommand?.RaiseCanExecuteChanged();
     }
     public string CreateCsv()
     {
         static string Cell(string s)=>"\""+s.Replace("\"","\"\"")+"\"";
-        var b=new StringBuilder("Hostname,Person,Account,Emails,IP,AnyDesk,Company,Department,Source,State\r\n");
-        foreach(var x in Results)b.AppendLine(string.Join(',',new[]{x.Asset.Hostname,x.Person,x.Asset.WindowsAccount,x.Emails,x.Asset.IpAddress,x.Asset.AnyDeskId,x.Asset.Company,x.Asset.Department,x.Asset.SourceFilePath,x.State}.Select(Cell)));
+        var b=new StringBuilder("Hostname,Person,Account,Emails,IP,AnyDesk,Company,Department,Location,AssetTag,OperatingSystem,Manufacturer,Model,Software,Source,State\r\n");
+        foreach(var x in Results)b.AppendLine(string.Join(',',new[]{x.Asset.Hostname,x.Person,x.Asset.WindowsAccount,x.Emails,x.Asset.IpAddress,x.Asset.AnyDeskId,x.Asset.Company,x.Asset.Department,x.Asset.Location,x.Asset.AssetTag,x.Asset.OsShortDisplay,x.Asset.Manufacturer,x.Asset.Model,string.Join("; ",x.Asset.Software.InstalledPrograms),x.Asset.SourceFilePath,x.State}.Select(Cell)));
         return b.ToString();
     }
     private void Export()
@@ -216,10 +222,22 @@ public sealed partial class AstraViewModel : ObservableObject, IDisposable
         try{var d=new SaveFileDialog{Filter="CSV (*.csv)|*.csv",FileName="astra-inventory.csv"};if(d.ShowDialog()==true){File.WriteAllText(d.FileName,CreateCsv(),new UTF8Encoding(true));Status="Visible results exported.";}}
         catch(Exception ex){Status="Export failed: "+ex.Message;}
     }
-    private sealed record AstraPreferences(string Folder,string Accent,double CardWidth);
+    private void ExportJsonBackup()
+    {
+        try{var d=new SaveFileDialog{Filter="CEDX JSON backup (*.json)|*.json",FileName=$"cedx-astra-{DateTime.Now:yyyy-MM-dd}.json"};if(d.ShowDialog()==true){_database.ExportJson(d.FileName);Status="JSON database backup saved.";}}
+        catch(Exception ex){Status="Backup failed: "+ex.Message;}
+    }
+    private void RestoreJsonBackup()
+    {
+        try{var d=new OpenFileDialog{Filter="CEDX JSON backup (*.json)|*.json",Title="Restore Astra database backup"};if(d.ShowDialog()!=true)return;
+            if(MessageBox.Show("Replace the complete Astra inventory with this JSON backup?\n\nA safety backup of the current database will be created first.","Restore database",MessageBoxButton.YesNo,MessageBoxImage.Warning)!=MessageBoxResult.Yes)return;
+            _database.ExportJson(Path.Combine(Path.GetDirectoryName(_database.Path)!,$"astra-before-restore-{DateTime.Now:yyyyMMdd-HHmmss}.json"));_database.RestoreJson(d.FileName);_ = RefreshAsync();Status="JSON database restored.";}
+        catch(Exception ex){Status="Restore failed: "+ex.Message;}
+    }
+    private sealed record AstraPreferences(string Folder,string Accent,double CardWidth,IReadOnlyList<string>? VisibleFilters=null,IReadOnlyList<string>? CustomFilters=null);
     public void Dispose()
     {
         _watcher?.Dispose();_watchTimer.Stop();Inspector.DisposeWorkspace();
-        try{if(_preferences is not null){Directory.CreateDirectory(Path.GetDirectoryName(_preferences)!);File.WriteAllText(_preferences,JsonSerializer.Serialize(new AstraPreferences(SourceFolder,Inspector.Accent,CardWidth)));}}catch(IOException){}
+        try{if(_preferences is not null){Directory.CreateDirectory(Path.GetDirectoryName(_preferences)!);File.WriteAllText(_preferences,JsonSerializer.Serialize(new AstraPreferences(SourceFolder,Inspector.Accent,CardWidth,FilterChoices.Where(x=>x.IsVisible).Select(x=>x.Id).ToArray(),_customFilters.Select(x=>x.Field+"\u001f"+x.Value).ToArray())));}}catch(IOException){}
     }
 }

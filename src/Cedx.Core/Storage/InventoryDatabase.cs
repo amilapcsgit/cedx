@@ -139,4 +139,68 @@ public sealed class InventoryDatabase
         using var db = Open(); using var backup = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = destination }.ToString());
         backup.Open(); db.BackupDatabase(backup);
     }
+
+    /// <summary>Writes a portable, human-readable snapshot containing assets, assignments and every revision.</summary>
+    public void ExportJson(string destination)
+    {
+        if (System.IO.Path.GetFullPath(destination).Equals(Path, StringComparison.OrdinalIgnoreCase))
+            throw new IOException("Choose a different backup file.");
+        var rows = new List<JsonAsset>();
+        {
+            using var db = Open(); using var assets = db.CreateCommand();
+            assets.CommandText = "SELECT id,identity,CAST(raw AS BLOB),source,scanned,hash,managed,sample,assignment FROM assets ORDER BY identity";
+            using var reader = assets.ExecuteReader();
+            while (reader.Read())
+                rows.Add(new(reader.GetString(0), reader.GetString(1), ReadRaw(reader, 2), reader.GetString(3), reader.GetString(4), reader.GetString(5),
+                    reader.GetInt32(6) == 1, reader.GetInt32(7) == 1,
+                    JsonSerializer.Deserialize<AssetAssignment>(reader.GetString(8)) ?? new(), []));
+        }
+        rows = rows.Select(asset => asset with { Revisions = History(asset.Id).Select(x => new JsonRevision(x.Date, x.Source, x.Hash, x.RawText)).ToArray() }).ToList();
+        var snapshot = new JsonSnapshot(1, DateTimeOffset.UtcNow, rows);
+        File.WriteAllText(destination, JsonSerializer.Serialize(snapshot, new JsonSerializerOptions { WriteIndented = true }), new UTF8Encoding(true));
+    }
+
+    /// <summary>Validates and atomically replaces the inventory with a portable JSON snapshot.</summary>
+    public void RestoreJson(string source)
+    {
+        var snapshot = JsonSerializer.Deserialize<JsonSnapshot>(File.ReadAllText(source))
+            ?? throw new InvalidDataException("The backup is empty or invalid.");
+        if (snapshot.FormatVersion != 1) throw new InvalidDataException($"Unsupported backup format {snapshot.FormatVersion}.");
+        if (snapshot.Assets.Select(x => x.Id).Distinct(StringComparer.Ordinal).Count() != snapshot.Assets.Count ||
+            snapshot.Assets.Select(x => x.Identity).Distinct(StringComparer.Ordinal).Count() != snapshot.Assets.Count)
+            throw new InvalidDataException("The backup contains duplicate asset identifiers.");
+        foreach (var asset in snapshot.Assets)
+        {
+            if (string.IsNullOrWhiteSpace(asset.Id) || string.IsNullOrWhiteSpace(asset.Identity) || asset.Assignment is null)
+                throw new InvalidDataException("The backup contains an incomplete asset.");
+            _ = DateTimeOffset.Parse(asset.Scanned, CultureInfo.InvariantCulture);
+            foreach (var revision in asset.Revisions) _ = DateTimeOffset.Parse(revision.Scanned, CultureInfo.InvariantCulture);
+        }
+
+        using var db = Open(); using var tx = db.BeginTransaction();
+        using (var clear = db.CreateCommand()) { clear.Transaction = tx; clear.CommandText = "DELETE FROM revisions; DELETE FROM assets;"; clear.ExecuteNonQuery(); }
+        foreach (var asset in snapshot.Assets)
+        {
+            using var insert = db.CreateCommand(); insert.Transaction = tx;
+            insert.CommandText = "INSERT INTO assets(id,identity,raw,source,scanned,hash,managed,sample,assignment) VALUES($id,$identity,$raw,$source,$scanned,$hash,$managed,$sample,$assignment)";
+            insert.Parameters.AddWithValue("$id", asset.Id); insert.Parameters.AddWithValue("$identity", asset.Identity);
+            insert.Parameters.Add("$raw", SqliteType.Blob).Value = Encoding.UTF8.GetBytes(asset.Raw);
+            insert.Parameters.AddWithValue("$source", asset.Source); insert.Parameters.AddWithValue("$scanned", asset.Scanned); insert.Parameters.AddWithValue("$hash", asset.Hash);
+            insert.Parameters.AddWithValue("$managed", asset.Managed ? 1 : 0); insert.Parameters.AddWithValue("$sample", asset.Sample ? 1 : 0);
+            insert.Parameters.AddWithValue("$assignment", JsonSerializer.Serialize(asset.Assignment)); insert.ExecuteNonQuery();
+            foreach (var revision in asset.Revisions)
+            {
+                using var history = db.CreateCommand(); history.Transaction = tx;
+                history.CommandText = "INSERT INTO revisions(asset_id,hash,scanned,source,raw) VALUES($id,$hash,$scanned,$source,$raw)";
+                history.Parameters.AddWithValue("$id", asset.Id); history.Parameters.AddWithValue("$hash", revision.Hash);
+                history.Parameters.AddWithValue("$scanned", revision.Scanned); history.Parameters.AddWithValue("$source", revision.Source);
+                history.Parameters.Add("$raw", SqliteType.Blob).Value = Encoding.UTF8.GetBytes(revision.Raw); history.ExecuteNonQuery();
+            }
+        }
+        tx.Commit();
+    }
+
+    private sealed record JsonSnapshot(int FormatVersion, DateTimeOffset ExportedUtc, IReadOnlyList<JsonAsset> Assets);
+    private sealed record JsonAsset(string Id, string Identity, string Raw, string Source, string Scanned, string Hash, bool Managed, bool Sample, AssetAssignment Assignment, IReadOnlyList<JsonRevision> Revisions);
+    private sealed record JsonRevision(string Scanned, string Source, string Hash, string Raw);
 }

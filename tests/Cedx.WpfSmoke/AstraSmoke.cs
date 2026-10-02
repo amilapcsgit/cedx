@@ -32,7 +32,13 @@ internal static class AstraSmoke
         Wait(vm.ApproveAsync());Check(db.Load().Count==1&&vm.CurrentCount==1&&vm.ReviewCount==3,"Only selected reviewed report approved");
         vm.Inspector.EditCompany="Demo organization";vm.Inspector.EditPerson="Sample operator";vm.Inspector.EditDepartment="Engineering";Wait(vm.SaveAssignmentAsync());
         var id=vm.Selected!.Asset.AssetId;
-        vm.Search="Sample operator";Check(vm.Results.Count==1&&vm.CreateCsv().Contains("Demo organization"),"Assignment is searchable and exportable");
+        Check(vm.CompanySuggestions.Contains("Demo organization")&&vm.DepartmentSuggestions.Contains("Engineering"),"Saved assignment values become one-click suggestions");
+        var companyFilter=vm.FilterChoices.Single(x=>x.Field=="Company"&&x.Value=="Demo organization");vm.ToggleQuickFilterCommand.Execute(companyFilter);
+        Check(vm.Results.Count==1,"Company quick button filters the visible inventory");vm.ToggleQuickFilterCommand.Execute(companyFilter);
+        vm.NewFilterField="Software";vm.NewFilterValue="AutoCAD";vm.AddQuickFilterCommand.Execute(null);
+        var softwareFilter=vm.FilterChoices.Single(x=>x.Field=="Software"&&x.Value=="AutoCAD");vm.ToggleQuickFilterCommand.Execute(softwareFilter);
+        Check(vm.Results.Count==1&&vm.Results[0].Asset.Hostname=="DEMO-CAD","Custom field filter finds installed software");vm.ToggleQuickFilterCommand.Execute(softwareFilter);
+        vm.Search="Sample operator";Check(vm.Results.Count==1&&vm.CreateCsv().Contains("Demo organization")&&vm.CreateCsv().Contains("OperatingSystem"),"Filtered CSV includes assignment and technical columns");
         vm.Scope="Review TXT";vm.Search="";vm.Selected=vm.Results.Single(x=>x.Asset.SourceFileName=="cad.txt");vm.Filename="reviewed.txt";Wait(vm.RenameAsync());
         Check(File.Exists(Path.Combine(folder,"reviewed.txt"))&&!File.Exists(Path.Combine(folder,"cad.txt")),"Astra renames source TXT");
         var source=vm.Selected!.Source!;Wait(vm.SaveTextAsync(source,source.Asset.RawContent.Replace("RAM: 64 GB","RAM: 96 GB")));
